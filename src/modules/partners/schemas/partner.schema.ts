@@ -21,7 +21,7 @@ export class Partner {
     @Prop({ required: true, trim: true })
     phone: string;
 
-    @Prop({ required: true, lowercase: true, trim: true })
+    @Prop({ required: true, unique: true, lowercase: true, trim: true })
     email: string;
 
     @Prop({ type: Object })
@@ -68,6 +68,4 @@ export class Partner {
 export const PartnerSchema = SchemaFactory.createForClass(Partner);
 
 PartnerSchema.index({ userId: 1 });
-PartnerSchema.index({ partnerCode: 1 }, { unique: true });
-PartnerSchema.index({ email: 1 }, { unique: true });
 PartnerSchema.index({ status: 1 });

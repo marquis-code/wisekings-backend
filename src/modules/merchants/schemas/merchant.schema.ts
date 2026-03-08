@@ -18,7 +18,7 @@ export class Merchant {
     @Prop({ required: true, trim: true })
     phone: string;
 
-    @Prop({ required: true, lowercase: true, trim: true })
+    @Prop({ required: true, unique: true, lowercase: true, trim: true })
     email: string;
 
     @Prop({ type: Object })
@@ -77,8 +77,6 @@ export class Merchant {
 export const MerchantSchema = SchemaFactory.createForClass(Merchant);
 
 MerchantSchema.index({ userId: 1 });
-MerchantSchema.index({ merchantCode: 1 }, { unique: true });
-MerchantSchema.index({ email: 1 }, { unique: true });
 MerchantSchema.index({ status: 1 });
 MerchantSchema.index({ category: 1 });
 MerchantSchema.index({ rank: 1 });

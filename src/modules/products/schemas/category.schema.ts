@@ -29,6 +29,5 @@ export class Category {
 
 export const CategorySchema = SchemaFactory.createForClass(Category);
 
-CategorySchema.index({ slug: 1 }, { unique: true });
 CategorySchema.index({ parentCategory: 1 });
 CategorySchema.index({ isActive: 1 });
