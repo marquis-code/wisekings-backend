@@ -1,0 +1,484 @@
+
+> wisekings-backend@1.0.0 build
+> nest build
+
+[96msrc/app.module.ts[0m:[93m7[0m:[93m8[0m - [91merror[0m[90m TS1192: [0mModule '"/Users/mac/Documents/wisekings/backend/src/config/configuration"' has no default export.
+
+[7m7[0m import configuration from './config/configuration';
+[7m [0m [91m       ~~~~~~~~~~~~~[0m
+[96msrc/app.module.ts[0m:[93m48[0m:[93m13[0m - [91merror[0m[90m TS2322: [0mType '(configService: ConfigService) => { ttl: number | undefined; limit: number | undefined; }[]' is not assignable to type '(...args: any[]) => ThrottlerModuleOptions | Promise<ThrottlerModuleOptions>'.
+  Type '{ ttl: number | undefined; limit: number | undefined; }[]' is not assignable to type 'ThrottlerModuleOptions | Promise<ThrottlerModuleOptions>'.
+    Type '{ ttl: number | undefined; limit: number | undefined; }[]' is not assignable to type 'ThrottlerOptions[]'.
+      Type '{ ttl: number | undefined; limit: number | undefined; }' is not assignable to type 'ThrottlerOptions'.
+        Types of property 'limit' are incompatible.
+          Type 'number | undefined' is not assignable to type 'Resolvable<number>'.
+            Type 'undefined' is not assignable to type 'Resolvable<number>'.
+
+[7m48[0m             useFactory: (configService: ConfigService) => [
+[7m  [0m [91m            ~~~~~~~~~~[0m
+
+  [96mnode_modules/@nestjs/throttler/dist/throttler-module-options.interface.d.ts[0m:[93m29[0m:[93m5[0m
+    [7m29[0m     useFactory?: (...args: any[]) => Promise<ThrottlerModuleOptions> | ThrottlerModuleOptions;
+    [7m  [0m [96m    ~~~~~~~~~~[0m
+    The expected type comes from property 'useFactory' which is declared here on type 'ThrottlerAsyncOptions'
+[96msrc/common/guards/permissions.guard.ts[0m:[93m45[0m:[93m48[0m - [91merror[0m[90m TS2339: [0mProperty 'permissions' does not exist on type '(FlattenMaps<any> & Required<{ _id: unknown; }> & { __v: number; })[] | (FlattenMaps<any> & Required<{ _id: unknown; }> & { __v: number; })'.
+  Property 'permissions' does not exist on type '(FlattenMaps<any> & Required<{ _id: unknown; }> & { __v: number; })[]'.
+
+[7m45[0m         const userPermissions: string[] = role.permissions || [];
+[7m  [0m [91m                                               ~~~~~~~~~~~[0m
+[96msrc/config/configuration.ts[0m:[93m34[0m:[93m20[0m - [91merror[0m[90m TS2345: [0mArgument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+
+[7m34[0m     port: parseInt(process.env.PORT, 10) || 3000,
+[7m  [0m [91m                   ~~~~~~~~~~~~~~~~[0m
+[96msrc/config/configuration.ts[0m:[93m80[0m:[93m19[0m - [91merror[0m[90m TS2345: [0mArgument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+
+[7m80[0m     ttl: parseInt(process.env.THROTTLE_TTL, 10) || 60,
+[7m  [0m [91m                  ~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96msrc/config/configuration.ts[0m:[93m81[0m:[93m21[0m - [91merror[0m[90m TS2345: [0mArgument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+
+[7m81[0m     limit: parseInt(process.env.THROTTLE_LIMIT, 10) || 100,
+[7m  [0m [91m                    ~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96msrc/modules/audit/audit.service.ts[0m:[93m15[0m:[93m23[0m - [91merror[0m[90m TS18048: [0m'page' is possibly 'undefined'.
+
+[7m15[0m         const skip = (page - 1) * limit;
+[7m  [0m [91m                      ~~~~[0m
+[96msrc/modules/audit/audit.service.ts[0m:[93m15[0m:[93m35[0m - [91merror[0m[90m TS18048: [0m'limit' is possibly 'undefined'.
+
+[7m15[0m         const skip = (page - 1) * limit;
+[7m  [0m [91m                                  ~~~~~[0m
+[96msrc/modules/audit/audit.service.ts[0m:[93m33[0m:[93m25[0m - [91merror[0m[90m TS2464: [0mA computed property name must be of type 'string', 'number', 'symbol', or 'any'.
+
+[7m33[0m                 .sort({ [sortBy]: sortOrder === 'asc' ? 1 : -1 })
+[7m  [0m [91m                        ~~~~~~~~[0m
+[96msrc/modules/audit/audit.service.ts[0m:[93m35[0m:[93m24[0m - [91merror[0m[90m TS2345: [0mArgument of type 'number | undefined' is not assignable to parameter of type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+
+[7m35[0m                 .limit(limit)
+[7m  [0m [91m                       ~~~~~[0m
+[96msrc/modules/audit/audit.service.ts[0m:[93m40[0m:[93m49[0m - [91merror[0m[90m TS2345: [0mArgument of type 'number | undefined' is not assignable to parameter of type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+
+[7m40[0m         return new PaginatedResult(data, total, page, limit);
+[7m  [0m [91m                                                ~~~~[0m
+[96msrc/modules/auth/dto/auth.dto.ts[0m:[93m2[0m:[93m26[0m - [91merror[0m[90m TS2307: [0mCannot find module '../../common/constants' or its corresponding type declarations.
+
+[7m2[0m import { UserType } from '../../common/constants';
+[7m [0m [91m                         ~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96msrc/modules/auth/guards/jwt-auth.guard.ts[0m:[93m8[0m:[93m31[0m - [91merror[0m[90m TS2307: [0mCannot find module '../../common/decorators/public.decorator' or its corresponding type declarations.
+
+[7m8[0m import { IS_PUBLIC_KEY } from '../../common/decorators/public.decorator';
+[7m [0m [91m                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96msrc/modules/chat/chat.module.ts[0m:[93m6[0m:[93m50[0m - [91merror[0m[90m TS2307: [0mCannot find module './schemas/conversation.schema' or its corresponding type declarations.
+
+[7m6[0m import { Conversation, ConversationSchema } from './schemas/conversation.schema';
+[7m [0m [91m                                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96msrc/modules/chat/chat.module.ts[0m:[93m7[0m:[93m40[0m - [91merror[0m[90m TS2307: [0mCannot find module './schemas/message.schema' or its corresponding type declarations.
+
+[7m7[0m import { Message, MessageSchema } from './schemas/message.schema';
+[7m [0m [91m                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96msrc/modules/chat/chat.service.ts[0m:[93m4[0m:[93m52[0m - [91merror[0m[90m TS2307: [0mCannot find module './schemas/conversation.schema' or its corresponding type declarations.
+
+[7m4[0m import { Conversation, ConversationDocument } from './schemas/conversation.schema';
+[7m [0m [91m                                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96msrc/modules/chat/chat.service.ts[0m:[93m5[0m:[93m42[0m - [91merror[0m[90m TS2307: [0mCannot find module './schemas/message.schema' or its corresponding type declarations.
+
+[7m5[0m import { Message, MessageDocument } from './schemas/message.schema';
+[7m [0m [91m                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96msrc/modules/chat/chat.service.ts[0m:[93m37[0m:[93m23[0m - [91merror[0m[90m TS18048: [0m'page' is possibly 'undefined'.
+
+[7m37[0m         const skip = (page - 1) * limit;
+[7m  [0m [91m                      ~~~~[0m
+[96msrc/modules/chat/chat.service.ts[0m:[93m37[0m:[93m35[0m - [91merror[0m[90m TS18048: [0m'limit' is possibly 'undefined'.
+
+[7m37[0m         const skip = (page - 1) * limit;
+[7m  [0m [91m                                  ~~~~~[0m
+[96msrc/modules/chat/chat.service.ts[0m:[93m45[0m:[93m24[0m - [91merror[0m[90m TS2345: [0mArgument of type 'number | undefined' is not assignable to parameter of type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+
+[7m45[0m                 .limit(limit)
+[7m  [0m [91m                       ~~~~~[0m
+[96msrc/modules/chat/chat.service.ts[0m:[93m50[0m:[93m49[0m - [91merror[0m[90m TS2345: [0mArgument of type 'number | undefined' is not assignable to parameter of type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+
+[7m50[0m         return new PaginatedResult(data, total, page, limit);
+[7m  [0m [91m                                                ~~~~[0m
+[96msrc/modules/chat/chat.service.ts[0m:[93m81[0m:[93m23[0m - [91merror[0m[90m TS18048: [0m'page' is possibly 'undefined'.
+
+[7m81[0m         const skip = (page - 1) * limit;
+[7m  [0m [91m                      ~~~~[0m
+[96msrc/modules/chat/chat.service.ts[0m:[93m81[0m:[93m35[0m - [91merror[0m[90m TS18048: [0m'limit' is possibly 'undefined'.
+
+[7m81[0m         const skip = (page - 1) * limit;
+[7m  [0m [91m                                  ~~~~~[0m
+[96msrc/modules/chat/chat.service.ts[0m:[93m89[0m:[93m24[0m - [91merror[0m[90m TS2345: [0mArgument of type 'number | undefined' is not assignable to parameter of type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+
+[7m89[0m                 .limit(limit)
+[7m  [0m [91m                       ~~~~~[0m
+[96msrc/modules/chat/chat.service.ts[0m:[93m95[0m:[93m59[0m - [91merror[0m[90m TS2345: [0mArgument of type 'number | undefined' is not assignable to parameter of type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+
+[7m95[0m         return new PaginatedResult(data.reverse(), total, page, limit);
+[7m  [0m [91m                                                          ~~~~[0m
+[96msrc/modules/chat/schemas/chat.schema.ts[0m:[93m3[0m:[93m29[0m - [91merror[0m[90m TS2307: [0mCannot find module '../../common/constants' or its corresponding type declarations.
+
+[7m3[0m import { MessageType } from '../../common/constants';
+[7m [0m [91m                            ~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96msrc/modules/commissions/commissions.service.ts[0m:[93m29[0m:[93m39[0m - [91merror[0m[90m TS2339: [0mProperty 'commissionRate' does not exist on type '(FlattenMaps<any> & Required<{ _id: unknown; }> & { __v: number; })[] | (FlattenMaps<any> & Required<{ _id: unknown; }> & { __v: number; })'.
+  Property 'commissionRate' does not exist on type '(FlattenMaps<any> & Required<{ _id: unknown; }> & { __v: number; })[]'.
+
+[7m29[0m             commissionRate = merchant.commissionRate;
+[7m  [0m [91m                                      ~~~~~~~~~~~~~~[0m
+[96msrc/modules/commissions/commissions.service.ts[0m:[93m35[0m:[93m38[0m - [91merror[0m[90m TS2339: [0mProperty 'commissionRate' does not exist on type '(FlattenMaps<any> & Required<{ _id: unknown; }> & { __v: number; })[] | (FlattenMaps<any> & Required<{ _id: unknown; }> & { __v: number; })'.
+  Property 'commissionRate' does not exist on type '(FlattenMaps<any> & Required<{ _id: unknown; }> & { __v: number; })[]'.
+
+[7m35[0m             commissionRate = partner.commissionRate;
+[7m  [0m [91m                                     ~~~~~~~~~~~~~~[0m
+[96msrc/modules/commissions/commissions.service.ts[0m:[93m106[0m:[93m23[0m - [91merror[0m[90m TS18048: [0m'page' is possibly 'undefined'.
+
+[7m106[0m         const skip = (page - 1) * limit;
+[7m   [0m [91m                      ~~~~[0m
+[96msrc/modules/commissions/commissions.service.ts[0m:[93m106[0m:[93m35[0m - [91merror[0m[90m TS18048: [0m'limit' is possibly 'undefined'.
+
+[7m106[0m         const skip = (page - 1) * limit;
+[7m   [0m [91m                                  ~~~~~[0m
+[96msrc/modules/commissions/commissions.service.ts[0m:[93m117[0m:[93m25[0m - [91merror[0m[90m TS2464: [0mA computed property name must be of type 'string', 'number', 'symbol', or 'any'.
+
+[7m117[0m                 .sort({ [sortBy]: sortOrder === 'asc' ? 1 : -1 })
+[7m   [0m [91m                        ~~~~~~~~[0m
+[96msrc/modules/commissions/commissions.service.ts[0m:[93m118[0m:[93m35[0m - [91merror[0m[90m TS2345: [0mArgument of type 'number | undefined' is not assignable to parameter of type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+
+[7m118[0m                 .skip(skip).limit(limit).lean(),
+[7m   [0m [91m                                  ~~~~~[0m
+[96msrc/modules/commissions/commissions.service.ts[0m:[93m121[0m:[93m49[0m - [91merror[0m[90m TS2345: [0mArgument of type 'number | undefined' is not assignable to parameter of type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+
+[7m121[0m         return new PaginatedResult(data, total, page, limit);
+[7m   [0m [91m                                                ~~~~[0m
+[96msrc/modules/commissions/schemas/commission.schema.ts[0m:[93m3[0m:[93m34[0m - [91merror[0m[90m TS2307: [0mCannot find module '../../common/constants' or its corresponding type declarations.
+
+[7m3[0m import { CommissionStatus } from '../../common/constants';
+[7m [0m [91m                                 ~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96msrc/modules/merchants/dto/merchant.dto.ts[0m:[93m12[0m:[93m34[0m - [91merror[0m[90m TS2307: [0mCannot find module '../../common/constants' or its corresponding type declarations.
+
+[7m12[0m import { MerchantCategory } from '../../common/constants';
+[7m  [0m [91m                                 ~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96msrc/modules/merchants/merchants.service.ts[0m:[93m85[0m:[93m32[0m - [91merror[0m[90m TS7053: [0mElement implicitly has an 'any' type because expression of type 'MerchantCategory' can't be used to index type 'Record<MerchantCategory, number>'.
+
+[7m85[0m         const commissionRate = COMMISSION_RATES[dto.category];
+[7m  [0m [91m                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96msrc/modules/merchants/merchants.service.ts[0m:[93m123[0m:[93m23[0m - [91merror[0m[90m TS18048: [0m'page' is possibly 'undefined'.
+
+[7m123[0m         const skip = (page - 1) * limit;
+[7m   [0m [91m                      ~~~~[0m
+[96msrc/modules/merchants/merchants.service.ts[0m:[93m123[0m:[93m35[0m - [91merror[0m[90m TS18048: [0m'limit' is possibly 'undefined'.
+
+[7m123[0m         const skip = (page - 1) * limit;
+[7m   [0m [91m                                  ~~~~~[0m
+[96msrc/modules/merchants/merchants.service.ts[0m:[93m141[0m:[93m25[0m - [91merror[0m[90m TS2464: [0mA computed property name must be of type 'string', 'number', 'symbol', or 'any'.
+
+[7m141[0m                 .sort({ [sortBy]: sortOrder === 'asc' ? 1 : -1 })
+[7m   [0m [91m                        ~~~~~~~~[0m
+[96msrc/modules/merchants/merchants.service.ts[0m:[93m143[0m:[93m24[0m - [91merror[0m[90m TS2345: [0mArgument of type 'number | undefined' is not assignable to parameter of type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+
+[7m143[0m                 .limit(limit)
+[7m   [0m [91m                       ~~~~~[0m
+[96msrc/modules/merchants/merchants.service.ts[0m:[93m148[0m:[93m49[0m - [91merror[0m[90m TS2345: [0mArgument of type 'number | undefined' is not assignable to parameter of type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+
+[7m148[0m         return new PaginatedResult(data, total, page, limit);
+[7m   [0m [91m                                                ~~~~[0m
+[96msrc/modules/merchants/merchants.service.ts[0m:[93m230[0m:[93m41[0m - [91merror[0m[90m TS7053: [0mElement implicitly has an 'any' type because expression of type 'any' can't be used to index type 'Record<MerchantCategory, number>'.
+
+[7m230[0m             updateData.commissionRate = COMMISSION_RATES[dto.category];
+[7m   [0m [91m                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96msrc/modules/merchants/merchants.service.ts[0m:[93m386[0m:[93m16[0m - [91merror[0m[90m TS2454: [0mVariable 'code' is used before being assigned.
+
+[7m386[0m         return code;
+[7m   [0m [91m               ~~~~[0m
+[96msrc/modules/merchants/schemas/merchant.schema.ts[0m:[93m3[0m:[93m64[0m - [91merror[0m[90m TS2307: [0mCannot find module '../../common/constants' or its corresponding type declarations.
+
+[7m3[0m import { MerchantCategory, MerchantRank, MerchantStatus } from '../../common/constants';
+[7m [0m [91m                                                               ~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96msrc/modules/notifications/notifications.service.ts[0m:[93m34[0m:[93m23[0m - [91merror[0m[90m TS18048: [0m'page' is possibly 'undefined'.
+
+[7m34[0m         const skip = (page - 1) * limit;
+[7m  [0m [91m                      ~~~~[0m
+[96msrc/modules/notifications/notifications.service.ts[0m:[93m34[0m:[93m35[0m - [91merror[0m[90m TS18048: [0m'limit' is possibly 'undefined'.
+
+[7m34[0m         const skip = (page - 1) * limit;
+[7m  [0m [91m                                  ~~~~~[0m
+[96msrc/modules/notifications/notifications.service.ts[0m:[93m41[0m:[93m24[0m - [91merror[0m[90m TS2345: [0mArgument of type 'number | undefined' is not assignable to parameter of type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+
+[7m41[0m                 .limit(limit)
+[7m  [0m [91m                       ~~~~~[0m
+[96msrc/modules/notifications/notifications.service.ts[0m:[93m46[0m:[93m49[0m - [91merror[0m[90m TS2345: [0mArgument of type 'number | undefined' is not assignable to parameter of type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+
+[7m46[0m         return new PaginatedResult(data, total, page, limit);
+[7m  [0m [91m                                                ~~~~[0m
+[96msrc/modules/notifications/schemas/notification.schema.ts[0m:[93m3[0m:[93m34[0m - [91merror[0m[90m TS2307: [0mCannot find module '../../common/constants' or its corresponding type declarations.
+
+[7m3[0m import { NotificationType } from '../../common/constants';
+[7m [0m [91m                                 ~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96msrc/modules/orders/orders.service.ts[0m:[93m33[0m:[93m23[0m - [91merror[0m[90m TS18048: [0m'page' is possibly 'undefined'.
+
+[7m33[0m         const skip = (page - 1) * limit;
+[7m  [0m [91m                      ~~~~[0m
+[96msrc/modules/orders/orders.service.ts[0m:[93m33[0m:[93m35[0m - [91merror[0m[90m TS18048: [0m'limit' is possibly 'undefined'.
+
+[7m33[0m         const skip = (page - 1) * limit;
+[7m  [0m [91m                                  ~~~~~[0m
+[96msrc/modules/orders/orders.service.ts[0m:[93m45[0m:[93m25[0m - [91merror[0m[90m TS2464: [0mA computed property name must be of type 'string', 'number', 'symbol', or 'any'.
+
+[7m45[0m                 .sort({ [sortBy]: sortOrder === 'asc' ? 1 : -1 })
+[7m  [0m [91m                        ~~~~~~~~[0m
+[96msrc/modules/orders/orders.service.ts[0m:[93m46[0m:[93m35[0m - [91merror[0m[90m TS2345: [0mArgument of type 'number | undefined' is not assignable to parameter of type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+
+[7m46[0m                 .skip(skip).limit(limit).lean(),
+[7m  [0m [91m                                  ~~~~~[0m
+[96msrc/modules/orders/orders.service.ts[0m:[93m49[0m:[93m49[0m - [91merror[0m[90m TS2345: [0mArgument of type 'number | undefined' is not assignable to parameter of type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+
+[7m49[0m         return new PaginatedResult(data, total, page, limit);
+[7m  [0m [91m                                                ~~~~[0m
+[96msrc/modules/orders/schemas/order.schema.ts[0m:[93m3[0m:[93m61[0m - [91merror[0m[90m TS2307: [0mCannot find module '../../common/constants' or its corresponding type declarations.
+
+[7m3[0m import { OrderStatus, PaymentStatus, PaymentProvider } from '../../common/constants';
+[7m [0m [91m                                                            ~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96msrc/modules/partners/partners.service.ts[0m:[93m77[0m:[93m23[0m - [91merror[0m[90m TS18048: [0m'page' is possibly 'undefined'.
+
+[7m77[0m         const skip = (page - 1) * limit;
+[7m  [0m [91m                      ~~~~[0m
+[96msrc/modules/partners/partners.service.ts[0m:[93m77[0m:[93m35[0m - [91merror[0m[90m TS18048: [0m'limit' is possibly 'undefined'.
+
+[7m77[0m         const skip = (page - 1) * limit;
+[7m  [0m [91m                                  ~~~~~[0m
+[96msrc/modules/partners/partners.service.ts[0m:[93m89[0m:[93m88[0m - [91merror[0m[90m TS2464: [0mA computed property name must be of type 'string', 'number', 'symbol', or 'any'.
+
+[7m89[0m             this.partnerModel.find(filter).populate('userId', 'email fullName').sort({ [sortBy]: sortOrder === 'asc' ? 1 : -1 }).skip(skip).limit(limit).lean(),
+[7m  [0m [91m                                                                                       ~~~~~~~~[0m
+[96msrc/modules/partners/partners.service.ts[0m:[93m89[0m:[93m147[0m - [91merror[0m[90m TS2345: [0mArgument of type 'number | undefined' is not assignable to parameter of type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+
+[7m89[0m             this.partnerModel.find(filter).populate('userId', 'email fullName').sort({ [sortBy]: sortOrder === 'asc' ? 1 : -1 }).skip(skip).limit(limit).lean(),
+[7m  [0m [91m                                                                                                                                                  ~~~~~[0m
+[96msrc/modules/partners/partners.service.ts[0m:[93m92[0m:[93m49[0m - [91merror[0m[90m TS2345: [0mArgument of type 'number | undefined' is not assignable to parameter of type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+
+[7m92[0m         return new PaginatedResult(data, total, page, limit);
+[7m  [0m [91m                                                ~~~~[0m
+[96msrc/modules/partners/partners.service.ts[0m:[93m117[0m:[93m61[0m - [91merror[0m[90m TS2339: [0mProperty 'availableBalance' does not exist on type '(FlattenMaps<any> & Required<{ _id: unknown; }> & { __v: number; })[] | (FlattenMaps<any> & Required<{ _id: unknown; }> & { __v: number; })'.
+  Property 'availableBalance' does not exist on type '(FlattenMaps<any> & Required<{ _id: unknown; }> & { __v: number; })[]'.
+
+[7m117[0m                 wallet: wallet ? { availableBalance: wallet.availableBalance, pendingBalance: wallet.pendingBalance, totalEarned: wallet.totalEarned, totalWithdrawn: wallet.totalWithdrawn } : null,
+[7m   [0m [91m                                                            ~~~~~~~~~~~~~~~~[0m
+[96msrc/modules/partners/partners.service.ts[0m:[93m117[0m:[93m102[0m - [91merror[0m[90m TS2339: [0mProperty 'pendingBalance' does not exist on type '(FlattenMaps<any> & Required<{ _id: unknown; }> & { __v: number; })[] | (FlattenMaps<any> & Required<{ _id: unknown; }> & { __v: number; })'.
+  Property 'pendingBalance' does not exist on type '(FlattenMaps<any> & Required<{ _id: unknown; }> & { __v: number; })[]'.
+
+[7m117[0m                 wallet: wallet ? { availableBalance: wallet.availableBalance, pendingBalance: wallet.pendingBalance, totalEarned: wallet.totalEarned, totalWithdrawn: wallet.totalWithdrawn } : null,
+[7m   [0m [91m                                                                                                     ~~~~~~~~~~~~~~[0m
+[96msrc/modules/partners/partners.service.ts[0m:[93m117[0m:[93m138[0m - [91merror[0m[90m TS2339: [0mProperty 'totalEarned' does not exist on type '(FlattenMaps<any> & Required<{ _id: unknown; }> & { __v: number; })[] | (FlattenMaps<any> & Required<{ _id: unknown; }> & { __v: number; })'.
+  Property 'totalEarned' does not exist on type '(FlattenMaps<any> & Required<{ _id: unknown; }> & { __v: number; })[]'.
+
+[7m117[0m                 wallet: wallet ? { availableBalance: wallet.availableBalance, pendingBalance: wallet.pendingBalance, totalEarned: wallet.totalEarned, totalWithdrawn: wallet.totalWithdrawn } : null,
+[7m   [0m [91m                                                                                                                                         ~~~~~~~~~~~[0m
+[96msrc/modules/partners/partners.service.ts[0m:[93m117[0m:[93m174[0m - [91merror[0m[90m TS2339: [0mProperty 'totalWithdrawn' does not exist on type '(FlattenMaps<any> & Required<{ _id: unknown; }> & { __v: number; })[] | (FlattenMaps<any> & Required<{ _id: unknown; }> & { __v: number; })'.
+  Property 'totalWithdrawn' does not exist on type '(FlattenMaps<any> & Required<{ _id: unknown; }> & { __v: number; })[]'.
+
+[7m117[0m                 wallet: wallet ? { availableBalance: wallet.availableBalance, pendingBalance: wallet.pendingBalance, totalEarned: wallet.totalEarned, totalWithdrawn: wallet.totalWithdrawn } : null,
+[7m   [0m [91m                                                                                                                                                                             ~~~~~~~~~~~~~~[0m
+[96msrc/modules/partners/partners.service.ts[0m:[93m151[0m:[93m16[0m - [91merror[0m[90m TS2454: [0mVariable 'code' is used before being assigned.
+
+[7m151[0m         return code;
+[7m   [0m [91m               ~~~~[0m
+[96msrc/modules/partners/schemas/partner.schema.ts[0m:[93m3[0m:[93m31[0m - [91merror[0m[90m TS2307: [0mCannot find module '../../common/constants' or its corresponding type declarations.
+
+[7m3[0m import { PartnerStatus } from '../../common/constants';
+[7m [0m [91m                              ~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96msrc/modules/payments/payments.controller.ts[0m:[93m61[0m:[93m68[0m - [91merror[0m[90m TS2345: [0mArgument of type 'Buffer<ArrayBufferLike> | undefined' is not assignable to parameter of type 'Buffer<ArrayBufferLike>'.
+  Type 'undefined' is not assignable to type 'Buffer<ArrayBufferLike>'.
+
+[7m61[0m         return this.paymentsService.verifyStripeWebhook(signature, req.rawBody);
+[7m  [0m [91m                                                                   ~~~~~~~~~~~[0m
+[96msrc/modules/payments/payments.service.ts[0m:[93m3[0m:[93m19[0m - [91merror[0m[90m TS2307: [0mCannot find module 'axios' or its corresponding type declarations.
+
+[7m3[0m import axios from 'axios';
+[7m [0m [91m                  ~~~~~~~[0m
+[96msrc/modules/payments/payments.service.ts[0m:[93m4[0m:[93m20[0m - [91merror[0m[90m TS2307: [0mCannot find module 'stripe' or its corresponding type declarations.
+
+[7m4[0m import Stripe from 'stripe';
+[7m [0m [91m                   ~~~~~~~~[0m
+[96msrc/modules/payments/payments.service.ts[0m:[93m21[0m:[93m9[0m - [91merror[0m[90m TS2322: [0mType 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+
+[7m21[0m         this.paystackSecret = this.configService.get<string>('paystack.secretKey');
+[7m  [0m [91m        ~~~~~~~~~~~~~~~~~~~[0m
+[96msrc/modules/products/products.service.ts[0m:[93m31[0m:[93m23[0m - [91merror[0m[90m TS18048: [0m'page' is possibly 'undefined'.
+
+[7m31[0m         const skip = (page - 1) * limit;
+[7m  [0m [91m                      ~~~~[0m
+[96msrc/modules/products/products.service.ts[0m:[93m31[0m:[93m35[0m - [91merror[0m[90m TS18048: [0m'limit' is possibly 'undefined'.
+
+[7m31[0m         const skip = (page - 1) * limit;
+[7m  [0m [91m                                  ~~~~~[0m
+[96msrc/modules/products/products.service.ts[0m:[93m47[0m:[93m25[0m - [91merror[0m[90m TS2464: [0mA computed property name must be of type 'string', 'number', 'symbol', or 'any'.
+
+[7m47[0m                 .sort({ [sortBy]: sortOrder === 'asc' ? 1 : -1 })
+[7m  [0m [91m                        ~~~~~~~~[0m
+[96msrc/modules/products/products.service.ts[0m:[93m49[0m:[93m24[0m - [91merror[0m[90m TS2345: [0mArgument of type 'number | undefined' is not assignable to parameter of type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+
+[7m49[0m                 .limit(limit)
+[7m  [0m [91m                       ~~~~~[0m
+[96msrc/modules/products/products.service.ts[0m:[93m54[0m:[93m49[0m - [91merror[0m[90m TS2345: [0mArgument of type 'number | undefined' is not assignable to parameter of type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+
+[7m54[0m         return new PaginatedResult(data, total, page, limit);
+[7m  [0m [91m                                                ~~~~[0m
+[96msrc/modules/referrals/referrals.controller.ts[0m:[93m15[0m:[93m68[0m - [91merror[0m[90m TS2345: [0mArgument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+
+[7m15[0m         return this.referralsService.trackClick(body.referralCode, ip, userAgent, body.landingPage, body.sessionId);
+[7m  [0m [91m                                                                   ~~[0m
+[96msrc/modules/referrals/referrals.service.ts[0m:[93m36[0m:[93m35[0m - [91merror[0m[90m TS2339: [0mProperty '_id' does not exist on type '(FlattenMaps<any> & Required<{ _id: unknown; }> & { __v: number; })[] | (FlattenMaps<any> & Required<{ _id: unknown; }> & { __v: number; })'.
+  Property '_id' does not exist on type '(FlattenMaps<any> & Required<{ _id: unknown; }> & { __v: number; })[]'.
+
+[7m36[0m             merchantId = merchant._id;
+[7m  [0m [91m                                  ~~~[0m
+[96msrc/modules/referrals/referrals.service.ts[0m:[93m39[0m:[93m46[0m - [91merror[0m[90m TS2339: [0mProperty '_id' does not exist on type '(FlattenMaps<any> & Required<{ _id: unknown; }> & { __v: number; })[] | (FlattenMaps<any> & Required<{ _id: unknown; }> & { __v: number; })'.
+  Property '_id' does not exist on type '(FlattenMaps<any> & Required<{ _id: unknown; }> & { __v: number; })[]'.
+
+[7m39[0m             if (partner) partnerId = partner._id;
+[7m  [0m [91m                                             ~~~[0m
+[96msrc/modules/referrals/referrals.service.ts[0m:[93m42[0m:[93m14[0m - [91merror[0m[90m TS2454: [0mVariable 'merchantId' is used before being assigned.
+
+[7m42[0m         if (!merchantId && !partnerId) {
+[7m  [0m [91m             ~~~~~~~~~~[0m
+[96msrc/modules/referrals/referrals.service.ts[0m:[93m42[0m:[93m29[0m - [91merror[0m[90m TS2454: [0mVariable 'partnerId' is used before being assigned.
+
+[7m42[0m         if (!merchantId && !partnerId) {
+[7m  [0m [91m                            ~~~~~~~~~[0m
+[96msrc/modules/referrals/referrals.service.ts[0m:[93m50[0m:[93m13[0m - [91merror[0m[90m TS2454: [0mVariable 'merchantId' is used before being assigned.
+
+[7m50[0m             merchantId,
+[7m  [0m [91m            ~~~~~~~~~~[0m
+[96msrc/modules/referrals/referrals.service.ts[0m:[93m51[0m:[93m13[0m - [91merror[0m[90m TS2454: [0mVariable 'partnerId' is used before being assigned.
+
+[7m51[0m             partnerId,
+[7m  [0m [91m            ~~~~~~~~~[0m
+[96msrc/modules/referrals/referrals.service.ts[0m:[93m64[0m:[93m25[0m - [91merror[0m[90m TS2454: [0mVariable 'merchantId' is used before being assigned.
+
+[7m64[0m             merchantId: merchantId?.toString(),
+[7m  [0m [91m                        ~~~~~~~~~~[0m
+[96msrc/modules/referrals/referrals.service.ts[0m:[93m65[0m:[93m24[0m - [91merror[0m[90m TS2454: [0mVariable 'partnerId' is used before being assigned.
+
+[7m65[0m             partnerId: partnerId?.toString(),
+[7m  [0m [91m                       ~~~~~~~~~[0m
+[96msrc/modules/referrals/referrals.service.ts[0m:[93m71[0m:[93m63[0m - [91merror[0m[90m TS2339: [0mProperty '_id' does not exist on type '(FlattenMaps<any> & Required<{ _id: unknown; }> & { __v: number; })[] | (FlattenMaps<any> & Required<{ _id: unknown; }> & { __v: number; })'.
+  Property '_id' does not exist on type '(FlattenMaps<any> & Required<{ _id: unknown; }> & { __v: number; })[]'.
+
+[7m71[0m         if (merchant) return { type: 'merchant', id: merchant._id, code: merchant.merchantCode };
+[7m  [0m [91m                                                              ~~~[0m
+[96msrc/modules/referrals/referrals.service.ts[0m:[93m71[0m:[93m83[0m - [91merror[0m[90m TS2339: [0mProperty 'merchantCode' does not exist on type '(FlattenMaps<any> & Required<{ _id: unknown; }> & { __v: number; })[] | (FlattenMaps<any> & Required<{ _id: unknown; }> & { __v: number; })'.
+  Property 'merchantCode' does not exist on type '(FlattenMaps<any> & Required<{ _id: unknown; }> & { __v: number; })[]'.
+
+[7m71[0m         if (merchant) return { type: 'merchant', id: merchant._id, code: merchant.merchantCode };
+[7m  [0m [91m                                                                                  ~~~~~~~~~~~~[0m
+[96msrc/modules/referrals/referrals.service.ts[0m:[93m74[0m:[93m60[0m - [91merror[0m[90m TS2339: [0mProperty '_id' does not exist on type '(FlattenMaps<any> & Required<{ _id: unknown; }> & { __v: number; })[] | (FlattenMaps<any> & Required<{ _id: unknown; }> & { __v: number; })'.
+  Property '_id' does not exist on type '(FlattenMaps<any> & Required<{ _id: unknown; }> & { __v: number; })[]'.
+
+[7m74[0m         if (partner) return { type: 'partner', id: partner._id, code: partner.partnerCode };
+[7m  [0m [91m                                                           ~~~[0m
+[96msrc/modules/referrals/referrals.service.ts[0m:[93m74[0m:[93m79[0m - [91merror[0m[90m TS2339: [0mProperty 'partnerCode' does not exist on type '(FlattenMaps<any> & Required<{ _id: unknown; }> & { __v: number; })[] | (FlattenMaps<any> & Required<{ _id: unknown; }> & { __v: number; })'.
+  Property 'partnerCode' does not exist on type '(FlattenMaps<any> & Required<{ _id: unknown; }> & { __v: number; })[]'.
+
+[7m74[0m         if (partner) return { type: 'partner', id: partner._id, code: partner.partnerCode };
+[7m  [0m [91m                                                                              ~~~~~~~~~~~[0m
+[96msrc/modules/uploads/uploads.service.ts[0m:[93m19[0m:[93m38[0m - [91merror[0m[90m TS2345: [0mArgument of type '[{ region: string | undefined; credentials: { accessKeyId: string | undefined; secretAccessKey: string | undefined; }; }]' is not assignable to parameter of type '[] | [S3ClientConfig]'.
+  Type '[{ region: string | undefined; credentials: { accessKeyId: string | undefined; secretAccessKey: string | undefined; }; }]' is not assignable to type '[S3ClientConfig]'.
+    Type '{ region: string | undefined; credentials: { accessKeyId: string | undefined; secretAccessKey: string | undefined; }; }' is not assignable to type 'S3ClientConfig'.
+      Type '{ region: string | undefined; credentials: { accessKeyId: string | undefined; secretAccessKey: string | undefined; }; }' is not assignable to type 'HttpAuthSchemeInputConfig'.
+        Types of property 'credentials' are incompatible.
+          Type '{ accessKeyId: string | undefined; secretAccessKey: string | undefined; }' is not assignable to type 'AwsCredentialIdentity | AwsCredentialIdentityProvider | undefined'.
+            Type '{ accessKeyId: string | undefined; secretAccessKey: string | undefined; }' is not assignable to type 'AwsCredentialIdentity'.
+              Types of property 'accessKeyId' are incompatible.
+                Type 'string | undefined' is not assignable to type 'string'.
+                  Type 'undefined' is not assignable to type 'string'.
+
+[7m 19[0m         this.s3Client = new S3Client({
+[7m   [0m [91m                                     ~[0m
+[7m 20[0m             region: this.configService.get<string>('aws.region'),
+[7m   [0m [91m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[7m...[0m 
+[7m 24[0m             },
+[7m   [0m [91m~~~~~~~~~~~~~~[0m
+[7m 25[0m         });
+[7m   [0m [91m~~~~~~~~~[0m
+[96msrc/modules/uploads/uploads.service.ts[0m:[93m26[0m:[93m9[0m - [91merror[0m[90m TS2322: [0mType 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+
+[7m26[0m         this.bucketName = this.configService.get<string>('aws.s3Bucket');
+[7m  [0m [91m        ~~~~~~~~~~~~~~~[0m
+[96msrc/modules/users/schemas/user.schema.ts[0m:[93m3[0m:[93m26[0m - [91merror[0m[90m TS2307: [0mCannot find module '../../common/constants' or its corresponding type declarations.
+
+[7m3[0m import { UserType } from '../../common/constants';
+[7m [0m [91m                         ~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96msrc/modules/users/users.service.ts[0m:[93m21[0m:[93m23[0m - [91merror[0m[90m TS18048: [0m'page' is possibly 'undefined'.
+
+[7m21[0m         const skip = (page - 1) * limit;
+[7m  [0m [91m                      ~~~~[0m
+[96msrc/modules/users/users.service.ts[0m:[93m21[0m:[93m35[0m - [91merror[0m[90m TS18048: [0m'limit' is possibly 'undefined'.
+
+[7m21[0m         const skip = (page - 1) * limit;
+[7m  [0m [91m                                  ~~~~~[0m
+[96msrc/modules/users/users.service.ts[0m:[93m35[0m:[93m25[0m - [91merror[0m[90m TS2464: [0mA computed property name must be of type 'string', 'number', 'symbol', or 'any'.
+
+[7m35[0m                 .sort({ [sortBy]: sortOrder === 'asc' ? 1 : -1 })
+[7m  [0m [91m                        ~~~~~~~~[0m
+[96msrc/modules/users/users.service.ts[0m:[93m37[0m:[93m24[0m - [91merror[0m[90m TS2345: [0mArgument of type 'number | undefined' is not assignable to parameter of type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+
+[7m37[0m                 .limit(limit)
+[7m  [0m [91m                       ~~~~~[0m
+[96msrc/modules/users/users.service.ts[0m:[93m43[0m:[93m49[0m - [91merror[0m[90m TS2345: [0mArgument of type 'number | undefined' is not assignable to parameter of type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+
+[7m43[0m         return new PaginatedResult(data, total, page, limit);
+[7m  [0m [91m                                                ~~~~[0m
+[96msrc/modules/wallets/schemas/wallet.schema.ts[0m:[93m3[0m:[93m34[0m - [91merror[0m[90m TS2307: [0mCannot find module '../../common/constants' or its corresponding type declarations.
+
+[7m3[0m import { WithdrawalStatus } from '../../common/constants';
+[7m [0m [91m                                 ~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96msrc/modules/wallets/wallets.service.ts[0m:[93m136[0m:[93m23[0m - [91merror[0m[90m TS18048: [0m'page' is possibly 'undefined'.
+
+[7m136[0m         const skip = (page - 1) * limit;
+[7m   [0m [91m                      ~~~~[0m
+[96msrc/modules/wallets/wallets.service.ts[0m:[93m136[0m:[93m35[0m - [91merror[0m[90m TS18048: [0m'limit' is possibly 'undefined'.
+
+[7m136[0m         const skip = (page - 1) * limit;
+[7m   [0m [91m                                  ~~~~~[0m
+[96msrc/modules/wallets/wallets.service.ts[0m:[93m142[0m:[93m138[0m - [91merror[0m[90m TS2464: [0mA computed property name must be of type 'string', 'number', 'symbol', or 'any'.
+
+[7m142[0m             this.withdrawalModel.find(filter).populate('requestedBy', 'email fullName').populate('processedBy', 'email fullName').sort({ [sortBy]: sortOrder === 'asc' ? 1 : -1 }).skip(skip).limit(limit).lean(),
+[7m   [0m [91m                                                                                                                                         ~~~~~~~~[0m
+[96msrc/modules/wallets/wallets.service.ts[0m:[93m142[0m:[93m197[0m - [91merror[0m[90m TS2345: [0mArgument of type 'number | undefined' is not assignable to parameter of type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+
+[7m142[0m             this.withdrawalModel.find(filter).populate('requestedBy', 'email fullName').populate('processedBy', 'email fullName').sort({ [sortBy]: sortOrder === 'asc' ? 1 : -1 }).skip(skip).limit(limit).lean(),
+[7m   [0m [91m                                                                                                                                                                                                    ~~~~~[0m
+[96msrc/modules/wallets/wallets.service.ts[0m:[93m153[0m:[93m49[0m - [91merror[0m[90m TS2345: [0mArgument of type 'number | undefined' is not assignable to parameter of type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+
+[7m153[0m         return new PaginatedResult(data, total, page, limit);
+[7m   [0m [91m                                                ~~~~[0m
+
+Found 102 error(s).
+
