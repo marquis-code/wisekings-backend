@@ -17,6 +17,14 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 export class PaymentsController {
     constructor(private readonly paymentsService: PaymentsService) { }
 
+    @Post('initialize')
+    @UseGuards(JwtAuthGuard)
+    async initialize(
+        @Body() body: { orderId: string; email: string; amount: number; currency: string; callbackUrl?: string },
+    ) {
+        return this.paymentsService.initializePayment(body);
+    }
+
     @Post('paystack/initialize')
     @UseGuards(JwtAuthGuard)
     async initPaystack(

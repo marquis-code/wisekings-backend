@@ -82,6 +82,20 @@ export class Order {
 
     @Prop()
     cancellationReason: string;
+
+    // AI Scaling Fields
+    @Prop({ default: 0 })
+    followUpEscalationLevel: number;
+
+    @Prop()
+    lastAiReminderSentAt: Date;
+
+    @Prop({ type: Object })
+    aiRiskAnalysis: {
+        fraudScore: number;
+        flaggedReasons: string[];
+        isAnomaly: boolean;
+    };
 }
 
 export const OrderSchema = SchemaFactory.createForClass(Order);

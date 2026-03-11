@@ -2,6 +2,7 @@ import { Module, ValidationPipe } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { ScheduleModule } from '@nestjs/schedule';
 import { APP_GUARD, APP_INTERCEPTOR, APP_FILTER } from '@nestjs/core';
 
 import configuration from './config/configuration';
@@ -19,7 +20,14 @@ import { ReferralsModule } from './modules/referrals/referrals.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { ChatModule } from './modules/chat/chat.module';
 import { AuditModule } from './modules/audit/audit.module';
+import { SupportModule } from './modules/support/support.module';
+import { AiModule } from './modules/ai/ai.module';
 import { UploadsModule } from './modules/uploads/uploads.module';
+import { MarketingModule } from './modules/marketing/marketing.module';
+import { MailModule } from './modules/mail/mail.module';
+import { WebsocketsModule } from './modules/websockets/websockets.module';
+import { EmailTemplatesModule } from './modules/email-templates/email-templates.module';
+import { CurrenciesModule } from './modules/currencies/currencies.module';
 
 import { GlobalExceptionFilter } from './common/filters';
 import { TransformInterceptor, AuditInterceptor } from './common/interceptors';
@@ -32,6 +40,7 @@ import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
             isGlobal: true,
             load: [configuration],
         }),
+        ScheduleModule.forRoot(),
 
         // Database
         MongooseModule.forRootAsync({
@@ -41,6 +50,8 @@ import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
             }),
             inject: [ConfigService],
         }),
+        MailModule,
+        WebsocketsModule,
 
         // Rate Limiting
         ThrottlerModule.forRootAsync({
@@ -69,7 +80,11 @@ import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
         NotificationsModule,
         ChatModule,
         AuditModule,
+        SupportModule,
+        AiModule,
         UploadsModule,
+        MarketingModule,
+        CurrenciesModule,
     ],
     providers: [
         // Global Filter

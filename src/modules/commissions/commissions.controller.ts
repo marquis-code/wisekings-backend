@@ -8,6 +8,14 @@ import { PaginationDto } from '../../common/dto';
 export class CommissionsController {
     constructor(private readonly commissionsService: CommissionsService) { }
 
+    @Get('me')
+    async getMyCommissions(
+        @CurrentUser('_id') userId: string,
+        @Query() paginationDto: PaginationDto,
+    ) {
+        return this.commissionsService.findByUser(userId, paginationDto);
+    }
+
     @Get()
     @Roles('superadmin', 'admin', 'finance')
     @UseGuards(RolesGuard)

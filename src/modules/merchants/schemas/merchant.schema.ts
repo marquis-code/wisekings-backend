@@ -15,7 +15,7 @@ export class Merchant {
     @Prop({ required: true, trim: true })
     fullName: string;
 
-    @Prop({ required: true, trim: true })
+    @Prop({ trim: true, default: '' })
     phone: string;
 
     @Prop({ required: true, unique: true, lowercase: true, trim: true })
@@ -72,6 +72,27 @@ export class Merchant {
 
     @Prop()
     lastCategoryUpgradeAt: Date;
+    @Prop({
+        type: {
+            status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
+            idType: { type: String },
+            idNumber: { type: String },
+            idDocumentUrl: { type: String },
+            rejectionReason: { type: String },
+            submittedAt: { type: Date },
+            verifiedAt: { type: Date },
+        },
+        default: { status: 'pending' },
+    })
+    kyc: {
+        status: string;
+        idType?: string;
+        idNumber?: string;
+        idDocumentUrl?: string;
+        rejectionReason?: string;
+        submittedAt?: Date;
+        verifiedAt?: Date;
+    };
 }
 
 export const MerchantSchema = SchemaFactory.createForClass(Merchant);

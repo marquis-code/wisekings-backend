@@ -1,85 +1,73 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import {
-    S3Client,
-    PutObjectCommand,
-    DeleteObjectCommand,
-    GetObjectCommand,
-} from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { v4 as uuidv4 } from 'uuid';
+import { v2 as cloudinary, UploadApiResponse, UploadApiErrorResponse } from 'cloudinary';
+import { Buffer } from 'buffer';
 
 @Injectable()
 export class UploadsService {
-    private readonly s3Client: S3Client;
-    private readonly bucketName: string;
     private readonly logger = new Logger(UploadsService.name);
 
     constructor(private configService: ConfigService) {
-        this.s3Client = new S3Client({
-            region: this.configService.get<string>('aws.region') || '',
-            credentials: {
-                accessKeyId: this.configService.get<string>('aws.accessKeyId') || '',
-                secretAccessKey: this.configService.get<string>('aws.secretAccessKey') || '',
-            },
+        cloudinary.config({
+            cloud_name: this.configService.get<string>('cloudinary.cloudName'),
+            api_key: this.configService.get<string>('cloudinary.apiKey'),
+            api_secret: this.configService.get<string>('cloudinary.apiSecret'),
         });
-        this.bucketName = this.configService.get<string>('aws.s3Bucket') || '';
     }
 
     async uploadFile(file: Express.Multer.File, folder = 'general'): Promise<string> {
-        const key = `${folder}/${uuidv4()}-${file.originalname}`;
-
-        try {
-            await this.s3Client.send(
-                new PutObjectCommand({
-                    Bucket: this.bucketName,
-                    Key: key,
-                    Body: file.buffer,
-                    ContentType: file.mimetype,
-                    ACL: 'public-read',
-                }),
+        return new Promise((resolve, reject) => {
+            const uploadStream = cloudinary.uploader.upload_stream(
+                {
+                    folder: folder,
+                    resource_type: 'auto',
+                },
+                (error: UploadApiErrorResponse, result: UploadApiResponse) => {
+                    if (error) {
+                        this.logger.error(`Error uploading file to Cloudinary: ${error.message}`);
+                        return reject(error);
+                    }
+                    resolve(result.secure_url);
+                },
             );
 
-            // Return the public URL
-            return `https://${this.bucketName}.s3.${this.configService.get<string>(
-                'aws.region',
-            )}.amazonaws.com/${key}`;
-        } catch (error) {
-            this.logger.error(`Error uploading file to S3: ${error.message}`);
-            throw error;
-        }
+            // Create a buffer stream and pipe it to Cloudinary
+            const stream = require('stream');
+            const bufferStream = new stream.PassThrough();
+            bufferStream.end(file.buffer);
+            bufferStream.pipe(uploadStream);
+        });
     }
 
     async deleteFile(url: string): Promise<void> {
         if (!url) return;
 
-        // Extract key from URL
-        // URL format: https://bucket.s3.region.amazonaws.com/folder/filename
-        const key = url.split('.amazonaws.com/')[1];
-        if (!key) return;
-
         try {
-            await this.s3Client.send(
-                new DeleteObjectCommand({
-                    Bucket: this.bucketName,
-                    Key: key,
-                }),
-            );
+            // Extract public_id from URL
+            // Example Cloudinary URL: https://res.cloudinary.com/<cloud_name>/image/upload/v1234567890/folder/filename.jpg
+            const urlParts = url.split('/');
+            const fileWithExtension = urlParts[urlParts.length - 1]; // filename.jpg
+            const folder = urlParts[urlParts.length - 2]; // folder
+            const public_id_base = fileWithExtension.split('.')[0]; // filename
+
+            const public_id = `${folder}/${public_id_base}`;
+
+            await cloudinary.uploader.destroy(public_id);
+            this.logger.log(`Deleted file from Cloudinary: ${public_id}`);
         } catch (error) {
-            this.logger.error(`Error deleting file from S3: ${error.message}`);
+            this.logger.error(`Error deleting file from Cloudinary: ${error.message}`);
         }
     }
 
-    async getPresignedUrl(key: string): Promise<string> {
+    async getPresignedUrl(url: string): Promise<string> {
+        // Cloudinary handles public delivery by default.
+        // If we want a signed delivery URL, we can generate one.
+        // For standard implementations, returning the standard URL is usually sufficient unless transformations are strictly protected.
+        // Provided we're just migrating direct uploads, we can return the URL itself.
         try {
-            const command = new GetObjectCommand({
-                Bucket: this.bucketName,
-                Key: key,
-            });
-
-            return await getSignedUrl(this.s3Client, command, { expiresIn: 3600 });
+            return url; // Could use cloudinary.utils.url(public_id, { sign_url: true }) if strict
         } catch (error) {
-            this.logger.error(`Error generating presigned URL: ${error.message}`);
+            this.logger.error(`Error getting URL: ${error.message}`);
             throw error;
         }
     }

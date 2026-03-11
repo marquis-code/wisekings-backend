@@ -34,10 +34,10 @@ export class OrdersController {
     @Get(':id')
     async findById(@Param('id') id: string) { return this.ordersService.findById(id); }
 
-    @Patch(':id/status')
+    @Patch('bulk/status')
     @Roles('superadmin', 'admin', 'support')
     @UseGuards(RolesGuard)
-    async updateStatus(@Param('id') id: string, @Body('status') status: OrderStatus) {
-        return this.ordersService.updateStatus(id, status);
+    async bulkUpdateStatus(@Body() body: { ids: string[]; status: OrderStatus }) {
+        return this.ordersService.bulkUpdateStatus(body.ids, body.status);
     }
 }

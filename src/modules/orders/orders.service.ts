@@ -13,13 +13,33 @@ export class OrdersService {
 
     constructor(
         @InjectModel(Order.name) private orderModel: Model<OrderDocument>,
+        @InjectModel('User') private userModel: Model<any>,
         private commissionsService: CommissionsService,
     ) { }
 
     async create(dto: any, customerId: string) {
         const orderNumber = `WK-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+        // Handle point redemption
+        let finalAmount = dto.totalAmount;
+        if (dto.redeemPoints && dto.pointsToRedeem > 0) {
+            const user = await this.userModel.findById(customerId);
+            if (user && user.points >= dto.pointsToRedeem) {
+                // 1 point = 1 unit of currency (e.g. 1 NGN)
+                const discount = dto.pointsToRedeem;
+                finalAmount = Math.max(0, finalAmount - discount);
+
+                // Deduct points immediately or upon order placement
+                user.points -= dto.pointsToRedeem;
+                await user.save();
+
+                this.logger.log(`User ${customerId} redeemed ${dto.pointsToRedeem} points. Discount: ${discount}`);
+            }
+        }
+
         const order = await this.orderModel.create({
             ...dto,
+            totalAmount: finalAmount,
             orderNumber,
             customerId: new Types.ObjectId(customerId),
             status: OrderStatus.PENDING,
@@ -72,6 +92,16 @@ export class OrdersService {
 
         if (status === OrderStatus.COMPLETED) {
             order.completedAt = new Date();
+
+            // Award Loyalty Points: 1 point per 100 base units (e.g. NGN)
+            const pointsEarned = Math.floor(order.totalAmount / 100);
+            if (pointsEarned > 0) {
+                await this.userModel.findByIdAndUpdate(order.customerId, {
+                    $inc: { points: pointsEarned }
+                });
+                this.logger.log(`User ${order.customerId} earned ${pointsEarned} loyalty points for Order ${order._id}`);
+            }
+
             // Trigger commission calculation if referral
             if (order.paymentStatus === PaymentStatus.PAID && (order.merchantId || order.partnerId)) {
                 await this.commissionsService.calculateCommission(
@@ -118,6 +148,22 @@ export class OrdersService {
         return { message: 'Payment status updated', data: order };
     }
 
+    async bulkUpdateStatus(ids: string[], status: OrderStatus) {
+        const results = await Promise.all(ids.map(id => this.updateStatus(id, status)));
+        return { message: `${ids.length} orders updated successfully`, data: results };
+    }
+
+    async completeOrder(id: string) {
+        const order = await this.orderModel.findByIdAndUpdate(id, { status: 'completed', completedAt: new Date() }, { new: true });
+
+        // Trigger AI Recommendation & Lead Scoring Update
+        if (order) {
+            // Logic to update user leadScore and recommendedProducts via AI
+        }
+
+        return order;
+    }
+
     async attachReferral(orderId: string, merchantId: string, referralCode: string) {
         return this.orderModel.findByIdAndUpdate(orderId, {
             merchantId: new Types.ObjectId(merchantId),
@@ -126,6 +172,18 @@ export class OrdersService {
     }
 
     async getMyOrders(customerId: string, paginationDto: PaginationDto) {
+        // Check if user is a merchant or partner
+        const [merchant, partner] = await Promise.all([
+            this.userModel.db.model('Merchant').findOne({ userId: new Types.ObjectId(customerId) }).lean() as any,
+            this.userModel.db.model('Partner').findOne({ userId: new Types.ObjectId(customerId) }).lean() as any,
+        ]);
+
+        if (merchant) {
+            return this.findAll(paginationDto, { merchantId: merchant._id });
+        } else if (partner) {
+            return this.findAll(paginationDto, { partnerId: partner._id });
+        }
+
         return this.findAll(paginationDto, { customerId });
     }
 

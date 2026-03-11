@@ -2,6 +2,7 @@ import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 import Stripe from 'stripe';
+import * as crypto from 'crypto';
 import { OrdersService } from '../orders/orders.service';
 import { PaymentStatus } from '@common/constants';
 
@@ -10,6 +11,10 @@ export class PaymentsService {
     private readonly logger = new Logger(PaymentsService.name);
     private readonly stripe: Stripe;
     private readonly paystackSecret: string;
+    private readonly africanCountries = [
+        'NG', 'Nigeria', 'GH', 'Ghana', 'KE', 'Kenya', 'ZA', 'South Africa',
+        'RW', 'Rwanda', 'CI', 'Cote d\'Ivoire', 'SN', 'Senegal', 'TZ', 'Tanzania', 'UG', 'Uganda'
+    ];
 
     constructor(
         private configService: ConfigService,
@@ -19,6 +24,33 @@ export class PaymentsService {
             apiVersion: '2023-10-16' as any,
         });
         this.paystackSecret = this.configService.get<string>('paystack.secretKey') || '';
+    }
+
+    async initializePayment(dto: { orderId: string; email: string; amount: number; currency: string; callbackUrl?: string }) {
+        const { orderId, email, amount, currency } = dto;
+
+        // Fetch order to check country for regional routing
+        let routeToPaystack = currency.toUpperCase() === 'NGN';
+
+        try {
+            const order = await this.ordersService.findById(orderId);
+            const country = order.shippingAddress?.country;
+
+            if (country && this.africanCountries.some(c => country.toLowerCase().includes(c.toLowerCase()))) {
+                routeToPaystack = true;
+                this.logger.log(`Routing order ${orderId} to Paystack based on country: ${country}`);
+            }
+        } catch (error) {
+            this.logger.warn(`Could not fetch order ${orderId} for country routing, falling back to currency check`);
+        }
+
+        if (routeToPaystack) {
+            this.logger.log(`Routing order ${orderId} to Paystack`);
+            return this.initializePaystack(orderId, email, amount);
+        } else {
+            this.logger.log(`Routing order ${orderId} to Stripe`);
+            return this.createStripeIntent(orderId, amount, currency.toLowerCase());
+        }
     }
 
     // --- Paystack logic ---
@@ -32,7 +64,7 @@ export class PaymentsService {
                     email,
                     amount: amountInKobo,
                     metadata: { orderId },
-                    callback_url: this.configService.get<string>('paystack.callbackUrl'),
+                    callback_url: this.configService.get<string>('paystack.callbackUrl') || 'http://localhost:3004/checkout/success',
                 },
                 {
                     headers: {
@@ -47,27 +79,35 @@ export class PaymentsService {
             }
             throw new BadRequestException('Failed to initialize Paystack transaction');
         } catch (error) {
-            this.logger.error(`Paystack Error: ${error.response?.data?.message || error.message}`);
+            this.logger.error(`Paystack Initialization Error: ${error.response?.data?.message || error.message}`);
             throw new BadRequestException('Could not initialize payment with Paystack');
         }
     }
 
     async verifyPaystackWebhook(signature: string, payload: any) {
-        // Signature verification logic would go here using crypto.createHmac
-        // For now, assume it's valid if we trust the endpoint is secured by other means or if we implement the check
+        // Secure Signature Verification
+        const hash = crypto.createHmac('sha512', this.paystackSecret).update(JSON.stringify(payload)).digest('hex');
+
+        if (hash !== signature) {
+            this.logger.error('Invalid Paystack signature detected');
+            throw new BadRequestException('Invalid signature');
+        }
+
         const event = payload.event;
 
         if (event === 'charge.success') {
-            const { orderId } = payload.data.metadata;
+            const orderId = payload.data.metadata?.orderId;
             const reference = payload.data.reference;
 
-            await this.ordersService.updatePaymentStatus(
-                orderId,
-                PaymentStatus.PAID,
-                reference,
-                'paystack',
-            );
-            this.logger.log(`Payment confirmed for Order ${orderId} via Paystack`);
+            if (orderId) {
+                await this.ordersService.updatePaymentStatus(
+                    orderId,
+                    PaymentStatus.PAID,
+                    reference,
+                    'paystack',
+                );
+                this.logger.log(`Payment confirmed for Order ${orderId} via Paystack`);
+            }
         }
 
         return { status: 'success' };
@@ -111,13 +151,15 @@ export class PaymentsService {
             const intent = event.data.object as Stripe.PaymentIntent;
             const orderId = intent.metadata.orderId;
 
-            await this.ordersService.updatePaymentStatus(
-                orderId,
-                PaymentStatus.PAID,
-                intent.id,
-                'stripe',
-            );
-            this.logger.log(`Payment confirmed for Order ${orderId} via Stripe`);
+            if (orderId) {
+                await this.ordersService.updatePaymentStatus(
+                    orderId,
+                    PaymentStatus.PAID,
+                    intent.id,
+                    'stripe',
+                );
+                this.logger.log(`Payment confirmed for Order ${orderId} via Stripe`);
+            }
         }
 
         return { received: true };

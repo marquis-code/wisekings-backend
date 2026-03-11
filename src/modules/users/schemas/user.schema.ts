@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
-import { UserType } from '@common/constants';
+import { UserType } from '../../../common/constants';
 
 export type UserDocument = User & Document;
 
@@ -30,6 +30,9 @@ export class User {
     @Prop({ default: false })
     isEmailVerified: boolean;
 
+    @Prop({ default: false })
+    isInvited: boolean;
+
     @Prop()
     avatar: string;
 
@@ -43,10 +46,41 @@ export class User {
     passwordResetToken: string;
 
     @Prop()
-    passwordResetExpires: Date;
+    passwordResetExpires?: Date;
+
+    @Prop()
+    otpCode?: string;
+
+    @Prop()
+    otpExpires?: Date;
 
     @Prop({ type: [String], default: [] })
     fcmTokens: string[];
+
+    @Prop({ type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' })
+    applicationStatus: string;
+
+    @Prop({ type: String, enum: ['pending_signature', 'signed'], default: 'pending_signature' })
+    agreementStatus: string;
+
+    @Prop()
+    agreementSignedAt: Date;
+
+    @Prop({ default: 0 })
+    points: number;
+
+    // AI Scaling Fields
+    @Prop({ type: String, enum: ['active', 'at_risk', 'churned'], default: 'active' })
+    engagementStatus: string;
+
+    @Prop()
+    churnProbability: number;
+
+    @Prop({ type: [Types.ObjectId], ref: 'Product', default: [] })
+    recommendedProducts: Types.ObjectId[];
+
+    @Prop({ default: 0 })
+    leadScore: number;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

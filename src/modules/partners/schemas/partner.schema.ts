@@ -12,13 +12,13 @@ export class Partner {
     @Prop({ required: true, unique: true, trim: true })
     partnerCode: string;
 
-    @Prop({ required: true, trim: true })
+    @Prop({ trim: true })
     companyName: string;
 
     @Prop({ required: true, trim: true })
     contactPerson: string;
 
-    @Prop({ required: true, trim: true })
+    @Prop({ trim: true })
     phone: string;
 
     @Prop({ required: true, unique: true, lowercase: true, trim: true })
@@ -57,6 +57,28 @@ export class Partner {
 
     @Prop({ default: false })
     agreedToTerms: boolean;
+
+    @Prop({
+        type: {
+            status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
+            idType: { type: String },
+            idNumber: { type: String },
+            idDocumentUrl: { type: String },
+            rejectionReason: { type: String },
+            submittedAt: { type: Date },
+            verifiedAt: { type: Date },
+        },
+        default: { status: 'pending' },
+    })
+    kyc: {
+        status: string;
+        idType?: string;
+        idNumber?: string;
+        idDocumentUrl?: string;
+        rejectionReason?: string;
+        submittedAt?: Date;
+        verifiedAt?: Date;
+    };
 
     @Prop()
     suspendedAt: Date;

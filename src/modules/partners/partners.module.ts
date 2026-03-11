@@ -6,8 +6,11 @@ import { Partner, PartnerSchema } from './schemas/partner.schema';
 import { User, UserSchema } from '../users/schemas/user.schema';
 import { WalletSchema } from '../wallets/schemas/wallet.schema';
 
+import { MailModule } from '../mail/mail.module';
+
 @Module({
     imports: [
+        MailModule,
         MongooseModule.forFeature([
             { name: Partner.name, schema: PartnerSchema },
             { name: User.name, schema: UserSchema },

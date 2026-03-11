@@ -22,11 +22,27 @@ export class WalletsService {
     }
 
     async getMyWallet(userId: string) {
-        // Try merchant first, then partner
-        let wallet = await this.walletModel.findOne({ ownerId: new Types.ObjectId(userId), ownerType: 'merchant' }).lean();
-        if (!wallet) {
-            wallet = await this.walletModel.findOne({ ownerId: new Types.ObjectId(userId), ownerType: 'partner' }).lean();
+        // Find merchant or partner profile for the user
+        const [merchant, partner] = await Promise.all([
+            this.walletModel.db.model('Merchant').findOne({ userId: new Types.ObjectId(userId) }).lean() as any,
+            this.walletModel.db.model('Partner').findOne({ userId: new Types.ObjectId(userId) }).lean() as any,
+        ]);
+
+        const ownerId = merchant?._id || partner?._id;
+        const ownerType = merchant ? 'merchant' : (partner ? 'partner' : null);
+
+        if (!ownerId) {
+            // If profile not found, it might need auto-creation (happens in their respective services)
+            // But for now, we throw a clearer 404. 
+            // Better: Let's check if we can at least find the user and their type.
+            const user = await this.walletModel.db.model('User').findById(userId).lean() as any;
+            if (user?.userType === 'partner' || user?.userType === 'merchant') {
+                throw new NotFoundException(`Please visit your dashboard first to initialize your ${user.userType} profile.`);
+            }
+            throw new NotFoundException('Merchant or Partner profile not found');
         }
+
+        const wallet = await this.walletModel.findOne({ ownerId, ownerType }).lean();
         if (!wallet) throw new NotFoundException('Wallet not found');
         return wallet;
     }

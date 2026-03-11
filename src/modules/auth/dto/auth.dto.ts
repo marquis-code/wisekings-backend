@@ -22,6 +22,10 @@ export class RegisterDto {
     @IsOptional()
     @IsEnum(UserType)
     userType?: UserType;
+
+    @IsOptional()
+    @IsString()
+    role?: string;
 }
 
 export class LoginDto {
@@ -66,4 +70,26 @@ export class ChangePasswordDto {
     @IsString()
     @MinLength(8)
     newPassword: string;
+}
+
+export class VerifyOtpDto {
+    @IsNotEmpty()
+    @IsEmail()
+    email: string;
+
+    @IsNotEmpty()
+    @IsString()
+    otpCode: string;
+}
+
+export class ResendOtpDto {
+    @IsNotEmpty()
+    @IsEmail()
+    email: string;
+}
+
+export class SocialLoginDto {
+    @IsNotEmpty()
+    @IsString()
+    idToken: string;
 }

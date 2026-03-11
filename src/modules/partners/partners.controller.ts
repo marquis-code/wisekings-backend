@@ -19,9 +19,39 @@ export class PartnersController {
         return this.partnersService.findAll(paginationDto, { status });
     }
 
+    @Get('me')
+    @UseGuards(RolesGuard)
+    @Roles('partner')
+    async getMe(@CurrentUser('_id') userId: string) {
+        return this.partnersService.findByUserId(userId);
+    }
+
     @Get('me/dashboard')
+    @UseGuards(RolesGuard)
+    @Roles('partner')
     async getDashboard(@CurrentUser('_id') userId: string) {
         return this.partnersService.getDashboard(userId);
+    }
+
+    @Get('me/network')
+    @UseGuards(RolesGuard)
+    @Roles('partner')
+    async getNetwork(@CurrentUser('_id') userId: string) {
+        return this.partnersService.getNetwork(userId);
+    }
+
+    @Get('me/referral-qr')
+    @UseGuards(RolesGuard)
+    @Roles('partner')
+    async getMyReferralQr(@CurrentUser('_id') userId: string) {
+        return this.partnersService.getReferralQrCode(userId);
+    }
+
+    @Get('me/referrals')
+    @UseGuards(RolesGuard)
+    @Roles('partner')
+    async getReferrals(@CurrentUser('_id') userId: string) {
+        return this.partnersService.getReferrals(userId);
     }
 
     @Get(':id')
@@ -42,5 +72,26 @@ export class PartnersController {
     @UseGuards(RolesGuard)
     async suspend(@Param('id') id: string, @Body('reason') reason: string) {
         return this.partnersService.suspend(id, reason);
+    }
+
+    @Post('me/kyc')
+    @UseGuards(RolesGuard)
+    @Roles('partner')
+    async submitMyKyc(
+        @CurrentUser('_id') userId: string,
+        @Body() kycData: { idType: string; idNumber: string; idDocumentUrl: string },
+    ) {
+        return this.partnersService.submitKyc(userId, kycData);
+    }
+
+    @Patch(':id/kyc-status')
+    @Roles('superadmin', 'admin')
+    @UseGuards(RolesGuard)
+    async updateKycStatus(
+        @Param('id') id: string,
+        @Body('status') status: 'approved' | 'rejected',
+        @Body('reason') reason?: string,
+    ) {
+        return this.partnersService.updateKycStatus(id, status, reason);
     }
 }

@@ -37,9 +37,37 @@ export class MerchantsController {
         return this.merchantsService.findAll(paginationDto, { status, category, rank });
     }
 
+    // --- "me" routes MUST be defined BEFORE ":id" to avoid casting "me" as ObjectId ---
+
+    @Get('me')
+    async getMyProfile(@CurrentUser('_id') userId: string) {
+        return this.merchantsService.findOrCreateByUserId(userId);
+    }
+
+    @Put('me')
+    async updateMyProfile(
+        @CurrentUser('_id') userId: string,
+        @Body() dto: UpdateMerchantDto,
+    ) {
+        return this.merchantsService.updateByUserId(userId, dto);
+    }
+
     @Get('me/dashboard')
     async getDashboard(@CurrentUser('_id') userId: string) {
         return this.merchantsService.getDashboard(userId);
+    }
+
+    @Get('me/referral-qr')
+    async getMyReferralQr(@CurrentUser('_id') userId: string) {
+        return this.merchantsService.getReferralQrCode(userId);
+    }
+
+    @Get('me/referrals')
+    async getMyReferrals(
+        @CurrentUser('_id') userId: string,
+        @Query() paginationDto: PaginationDto,
+    ) {
+        return this.merchantsService.getReferrals(userId, paginationDto);
     }
 
     @Get('stats')
@@ -81,5 +109,26 @@ export class MerchantsController {
     @UseGuards(RolesGuard)
     async activate(@Param('id') id: string) {
         return this.merchantsService.activate(id);
+    }
+
+    @Post('me/kyc')
+    @Roles('merchant')
+    @UseGuards(RolesGuard)
+    async submitMyKyc(
+        @CurrentUser('_id') userId: string,
+        @Body() kycData: { idType: string; idNumber: string; idDocumentUrl: string },
+    ) {
+        return this.merchantsService.submitKyc(userId, kycData);
+    }
+
+    @Patch(':id/kyc-status')
+    @Roles('superadmin', 'admin')
+    @UseGuards(RolesGuard)
+    async updateKycStatus(
+        @Param('id') id: string,
+        @Body('status') status: 'approved' | 'rejected',
+        @Body('reason') reason?: string,
+    ) {
+        return this.merchantsService.updateKycStatus(id, status, reason);
     }
 }

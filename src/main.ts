@@ -3,6 +3,7 @@ import { ValidationPipe, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as compression from 'compression';
 import helmet from 'helmet';
+import * as net from 'net';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -17,8 +18,10 @@ async function bootstrap() {
     // Security
     app.use(helmet());
     app.enableCors({
-        origin: true, // Enable all origins dynamically
+        origin: (origin, callback) => callback(null, true),
         credentials: true,
+        methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+        allowedHeaders: '*',
     });
 
     // Performance

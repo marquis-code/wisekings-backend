@@ -26,6 +26,11 @@ export class WalletsController {
         return this.walletsService.getMyWithdrawals(userId, paginationDto);
     }
 
+    @Get('withdrawals/me')
+    async getMyWithdrawalsMe(@CurrentUser('_id') userId: string, @Query() paginationDto: PaginationDto) {
+        return this.walletsService.getMyWithdrawals(userId, paginationDto);
+    }
+
     @Get('withdrawals')
     @Roles('superadmin', 'admin', 'finance')
     @UseGuards(RolesGuard)

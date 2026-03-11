@@ -5,6 +5,14 @@ export enum UserType {
     CUSTOMER = 'customer',
 }
 
+export enum AdminRole {
+    SUPERADMIN = 'superadmin',
+    ADMIN = 'admin',
+    FINANCE = 'finance',
+    SUPPORT = 'support',
+    VIEWER = 'viewer',
+}
+
 export enum MerchantCategory {
     STANDARD = 'standard',
     GOLD = 'gold',

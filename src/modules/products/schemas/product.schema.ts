@@ -5,11 +5,11 @@ export type ProductDocument = Product & Document;
 
 @Schema({ timestamps: true, collection: 'products' })
 export class Product {
-    @Prop({ required: true, trim: true })
-    name: string;
+    @Prop({ type: Map, of: String, required: true })
+    name: Map<string, string>;
 
-    @Prop({ required: true })
-    description: string;
+    @Prop({ type: Map, of: String, required: true })
+    description: Map<string, string>;
 
     @Prop({ required: true, min: 0 })
     price: number;
@@ -56,6 +56,16 @@ export class Product {
 
     @Prop({ default: 0 })
     reviewCount: number;
+
+    // AI Scaling Fields
+    @Prop({ default: 0 })
+    demandForecast: number;
+
+    @Prop()
+    nextReplenishmentDate: Date;
+
+    @Prop({ default: 0 })
+    recommendedOrderQuantity: number;
 }
 
 export const ProductSchema = SchemaFactory.createForClass(Product);

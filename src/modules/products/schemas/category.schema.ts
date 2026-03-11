@@ -5,14 +5,11 @@ export type CategoryDocument = Category & Document;
 
 @Schema({ timestamps: true, collection: 'categories' })
 export class Category {
-    @Prop({ required: true, trim: true })
-    name: string;
+    @Prop({ type: Map, of: String, required: true })
+    name: Map<string, string>;
 
-    @Prop({ required: true, unique: true, lowercase: true, trim: true })
-    slug: string;
-
-    @Prop()
-    description: string;
+    @Prop({ type: Map, of: String })
+    description: Map<string, string>;
 
     @Prop()
     image: string;

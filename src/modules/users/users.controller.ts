@@ -8,12 +8,15 @@ import {
     Query,
     UseGuards,
     Patch,
+    Post,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { Roles, Permissions, CurrentUser } from '../../common/decorators';
 import { RolesGuard, PermissionsGuard } from '../../common/guards';
 import { PaginationDto } from '../../common/dto';
 import { ChangePasswordDto } from '../auth/dto';
+import { InviteUserDto } from './dto/invite-user.dto';
+import { UserQueryDto } from './dto/user-query.dto';
 
 @Controller('users')
 export class UsersController {
@@ -22,8 +25,10 @@ export class UsersController {
     @Get()
     @Roles('superadmin', 'admin')
     @UseGuards(RolesGuard)
-    async findAll(@Query() paginationDto: PaginationDto) {
-        return this.usersService.findAll(paginationDto);
+    async findAll(
+        @Query() queryDto: UserQueryDto,
+    ) {
+        return this.usersService.findAll(queryDto, queryDto.userType, queryDto.applicationStatus);
     }
 
     @Get('me')
@@ -83,6 +88,25 @@ export class UsersController {
     @UseGuards(RolesGuard)
     async toggleActive(@Param('id') id: string) {
         return this.usersService.toggleActive(id);
+    }
+
+    @Patch(':id/approve-partner')
+    @Roles('superadmin', 'admin')
+    @UseGuards(RolesGuard)
+    async approvePartner(@Param('id') id: string) {
+        return this.usersService.approvePartner(id);
+    }
+
+    @Post('me/sign-agreement')
+    async signAgreement(@CurrentUser('_id') userId: string) {
+        return this.usersService.signAgreement(userId);
+    }
+
+    @Post('invite')
+    @Roles('superadmin', 'admin')
+    @UseGuards(RolesGuard)
+    async inviteUser(@Body() inviteDto: InviteUserDto) {
+        return this.usersService.inviteUser(inviteDto);
     }
 
     @Delete(':id')

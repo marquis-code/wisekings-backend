@@ -1,107 +1,127 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Conversation, ConversationDocument, Message, MessageDocument } from './schemas/chat.schema';
-import { PaginationDto, PaginatedResult } from '@common/dto';
+import { MessageType } from '@common/constants';
 
 @Injectable()
 export class ChatService {
-    private readonly logger = new Logger(ChatService.name);
-
     constructor(
         @InjectModel(Conversation.name) private conversationModel: Model<ConversationDocument>,
         @InjectModel(Message.name) private messageModel: Model<MessageDocument>,
     ) { }
 
-    async createConversation(participants: string[], type: 'direct' | 'group' = 'direct') {
-        const participantIds = participants.map(id => new Types.ObjectId(id));
+    async findUserConversations(userId: string, paginationDto: any) {
+        const { limit = 10, skip = 0 } = paginationDto;
+        const conversations = await this.conversationModel.find({
+            participants: new Types.ObjectId(userId),
+        })
+            .sort({ lastMessageAt: -1 })
+            .limit(limit)
+            .skip(skip)
+            .populate('participants', 'fullName email avatar')
+            .exec();
 
-        // For direct chat, check if exists
-        if (type === 'direct') {
+        const total = await this.conversationModel.countDocuments({
+            participants: new Types.ObjectId(userId),
+        });
+
+        return { data: conversations, total, limit, skip };
+    }
+
+    async createConversation(participants: string[], type: string = 'direct') {
+        // If direct, check if exists
+        if (type === 'direct' && participants.length === 2) {
             const existing = await this.conversationModel.findOne({
-                type: 'direct',
-                participants: { $all: participantIds, $size: 2 },
+                participants: { $all: participants.map(p => new Types.ObjectId(p)) },
+                type: 'direct'
             });
-            if (existing) return existing;
+            if (existing) return { data: existing };
         }
 
-        return this.conversationModel.create({
-            participants: participantIds,
+        const newConv = await this.conversationModel.create({
+            participants: participants.map(p => new Types.ObjectId(p)),
             type,
         });
+
+        return { data: newConv };
     }
 
-    async findUserConversations(userId: string, paginationDto: PaginationDto) {
-        const { page = 1, limit = 10 } = paginationDto;
-        const skip = (page - 1) * limit;
+    async getConversationMessages(conversationId: string, paginationDto: any) {
+        const { limit = 50, skip = 0 } = paginationDto;
+        const messages = await this.messageModel.find({
+            conversationId: new Types.ObjectId(conversationId),
+        })
+            .sort({ createdAt: 1 }) // Or -1 if you want most recent first
+            .limit(limit)
+            .skip(skip)
+            .populate('senderId', 'fullName email avatar')
+            .exec();
 
-        const [data, total] = await Promise.all([
-            this.conversationModel
-                .find({ participants: new Types.ObjectId(userId) })
-                .populate('participants', 'fullName email avatar userType')
-                .sort({ updatedAt: -1 })
-                .skip(skip)
-                .limit(limit)
-                .lean(),
-            this.conversationModel.countDocuments({ participants: new Types.ObjectId(userId) }),
-        ]);
+        const total = await this.messageModel.countDocuments({
+            conversationId: new Types.ObjectId(conversationId),
+        });
 
-        return new PaginatedResult(data as any[], total, page, limit);
+        return { data: messages, total, limit, skip };
     }
 
-    async saveMessage(conversationId: string, senderId: string, content: string, type: string = 'text', attachments: any[] = []) {
-        const conversation = await this.conversationModel.findById(conversationId);
-        if (!conversation) throw new NotFoundException('Conversation not found');
-
+    async saveMessage(conversationId: string, senderId: string, content: string, type: MessageType = MessageType.TEXT, attachments: string[] = []) {
         const message = await this.messageModel.create({
             conversationId: new Types.ObjectId(conversationId),
             senderId: new Types.ObjectId(senderId),
             content,
             type,
             attachments,
-            readBy: [new Types.ObjectId(senderId)],
         });
 
-        // Update conversation last message
-        await this.conversationModel.findByIdAndUpdate(conversationId, {
-            lastMessage: {
-                content: type === 'text' ? content : `Sent an ${type}`,
-                senderId: new Types.ObjectId(senderId),
-                timestamp: new Date(),
-            },
-            updatedAt: new Date(),
-        });
+        // Update conversation last message and fetch it to get participants
+        const conversation = await this.conversationModel.findByIdAndUpdate(conversationId, {
+            lastMessage: content,
+            lastMessageAt: new Date(),
+            lastMessageBy: new Types.ObjectId(senderId),
+        }, { new: true }).exec();
 
-        return message;
-    }
+        const populatedMessage = await message.populate('senderId', 'fullName email avatar');
 
-    async getConversationMessages(conversationId: string, paginationDto: PaginationDto) {
-        const { page = 1, limit = 20 } = paginationDto;
-        const skip = (page - 1) * limit;
-
-        const [data, total] = await Promise.all([
-            this.messageModel
-                .find({ conversationId: new Types.ObjectId(conversationId) })
-                .populate('senderId', 'fullName email avatar')
-                .sort({ createdAt: -1 }) // Get latest first for infinite scroll
-                .skip(skip)
-                .limit(limit)
-                .lean(),
-            this.messageModel.countDocuments({ conversationId: new Types.ObjectId(conversationId) }),
-        ]);
-
-        // Reverse to show in chronological order on UI
-        return new PaginatedResult((data as any[]).reverse(), total, page, limit);
+        return {
+            message: populatedMessage,
+            conversation
+        };
     }
 
     async markAsRead(conversationId: string, userId: string) {
-        await this.messageModel.updateMany(
-            {
-                conversationId: new Types.ObjectId(conversationId),
-                readBy: { $ne: new Types.ObjectId(userId) }
-            },
-            { $addToSet: { readBy: new Types.ObjectId(userId) } }
+        return this.messageModel.updateMany(
+            { conversationId: new Types.ObjectId(conversationId), senderId: { $ne: new Types.ObjectId(userId) }, isRead: false },
+            { $set: { isRead: true }, $addToSet: { readBy: new Types.ObjectId(userId) } }
         );
-        return { success: true };
+    }
+
+    async createSupportConversation(userId: string) {
+        // Find an admin user
+        const admin = await this.messageModel.db.model('User').findOne({
+            userType: 'admin',
+            isActive: true
+        }).lean() as any;
+
+        const adminId = admin?._id || '65f1a2b3c4d5e6f7a8b9c0d1'; // Fallback to a known ID if no admin found (avoiding crash)
+
+        return this.createConversation([userId, adminId.toString()], 'direct');
+    }
+
+    async getOrCreateCommunityGroup(userType: string) {
+        const groupName = userType === 'partner' ? 'Partner Community' : 'Merchant Community';
+        let group = await this.conversationModel.findOne({
+            type: 'group',
+            groupName
+        }).exec();
+
+        if (!group) {
+            group = await this.conversationModel.create({
+                type: 'group',
+                groupName,
+                participants: []
+            });
+        }
+        return group;
     }
 }

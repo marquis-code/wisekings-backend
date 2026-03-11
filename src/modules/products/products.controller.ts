@@ -9,7 +9,10 @@ import {
     Query,
     UseGuards,
     Patch,
+    Headers,
+    Res,
 } from '@nestjs/common';
+import { Response } from 'express';
 import { ProductsService } from './products.service';
 import { Public, Roles } from '../../common/decorators';
 import { RolesGuard } from '../../common/guards';
@@ -24,30 +27,41 @@ export class ProductsController {
     @Get()
     async findAll(
         @Query() paginationDto: PaginationDto,
+        @Headers('x-locale') locale: string = 'en',
         @Query('category') category?: string,
     ) {
-        return this.productsService.findAll(paginationDto, { category, isActive: true });
+        return this.productsService.findAll(paginationDto, { category, isActive: true }, locale);
     }
 
     @Get('admin/list')
     @Roles('admin', 'superadmin')
     async findAllAdmin(
         @Query() paginationDto: PaginationDto,
+        @Headers('x-locale') locale: string = 'en',
         @Query('category') category?: string,
         @Query('isActive') isActive?: boolean,
     ) {
-        return this.productsService.findAll(paginationDto, { category, isActive });
+        return this.productsService.findAll(paginationDto, { category, isActive }, locale);
+    }
+
+    @Get('export')
+    @Roles('admin', 'superadmin')
+    async exportProducts(@Res() res: Response) {
+        const csv = await this.productsService.exportToCsv();
+        res.header('Content-Type', 'text/csv');
+        res.attachment('products_export.csv');
+        return res.send(csv);
     }
 
     @Public()
     @Get('slug/:slug')
-    async findBySlug(@Param('slug') slug: string) {
-        return this.productsService.findBySlug(slug);
+    async findBySlug(@Param('slug') slug: string, @Headers('x-locale') locale: string = 'en') {
+        return this.productsService.findBySlug(slug, locale);
     }
 
     @Get(':id')
-    async findById(@Param('id') id: string) {
-        return this.productsService.findById(id);
+    async findById(@Param('id') id: string, @Headers('x-locale') locale: string = 'en') {
+        return this.productsService.findById(id, locale);
     }
 
     @Post()
@@ -71,8 +85,8 @@ export class ProductsController {
     // Categories Controller Logic (can be separate but keeping here for simplicity as per requirement)
     @Public()
     @Get('categories/all')
-    async findAllCategories() {
-        return this.productsService.findAllCategories();
+    async findAllCategories(@Headers('x-locale') locale: string = 'en') {
+        return this.productsService.findAllCategories(locale);
     }
 
     @Post('categories')
@@ -91,5 +105,21 @@ export class ProductsController {
     @Roles('admin', 'superadmin')
     async deleteCategory(@Param('id') id: string) {
         return this.productsService.deleteCategory(id);
+    }
+
+    @Patch('bulk')
+    @Roles('admin', 'superadmin')
+    async bulkUpdate(@Body() body: { ids: string[]; update: any }) {
+        return this.productsService.bulkUpdate(body.ids, body.update);
+    }
+
+    @Public()
+    @Get(':id/recommendations')
+    async getRecommendations(
+        @Param('id') id: string,
+        @Headers('x-locale') locale: string,
+        @Query('limit') limit?: number,
+    ) {
+        return this.productsService.getRecommendations(id, parseInt(limit as any) || 4, locale || 'en');
     }
 }

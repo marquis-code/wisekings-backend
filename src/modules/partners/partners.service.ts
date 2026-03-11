@@ -14,6 +14,9 @@ import { UserType, PartnerStatus } from '@common/constants';
 import { PaginationDto, PaginatedResult } from '@common/dto';
 import { EncryptionUtil } from '@common/utils';
 
+import { MailService } from '../mail/mail.service';
+import * as QRCode from 'qrcode';
+
 @Injectable()
 export class PartnersService {
     private readonly logger = new Logger(PartnersService.name);
@@ -22,6 +25,7 @@ export class PartnersService {
         @InjectModel(Partner.name) private partnerModel: Model<PartnerDocument>,
         @InjectModel(User.name) private userModel: Model<UserDocument>,
         @InjectModel('Wallet') private walletModel: Model<any>,
+        private readonly mailService: MailService,
     ) { }
 
     async register(dto: any) {
@@ -106,21 +110,93 @@ export class PartnersService {
         return partner;
     }
 
-    async findByUserId(userId: string) {
-        const partner = await this.partnerModel.findOne({ userId: new Types.ObjectId(userId) }).lean();
-        if (!partner) throw new NotFoundException('Partner profile not found');
-        return partner;
+    async findByUserId(userId: string): Promise<Partner> {
+        let partner = await this.partnerModel.findOne({ userId: new Types.ObjectId(userId) }).lean();
+
+        if (!partner) {
+            // Auto-create partner profile if user is a partner but has no profile
+            const user = await this.userModel.findById(userId);
+            if (user && user.userType === UserType.PARTNER) {
+                this.logger.log(`Auto-creating partner profile for user ${userId}`);
+                const partnerCode = await this.generatePartnerCode(user.fullName || 'WK');
+                const newPartner = await this.partnerModel.create({
+                    userId: user._id,
+                    partnerCode,
+                    companyName: user.fullName || 'My Company',
+                    contactPerson: user.fullName,
+                    phone: user.phone || '',
+                    email: user.email,
+                    status: PartnerStatus.ACTIVE,
+                    referralLink: `https://wisekings.ng/?ref=${partnerCode}`,
+                });
+
+                await this.walletModel.create({ ownerId: newPartner._id, ownerType: 'partner' });
+                partner = newPartner.toObject() as any;
+            } else {
+                throw new NotFoundException('Partner profile not found');
+            }
+        }
+        return partner as unknown as Partner;
     }
 
     async getDashboard(userId: string) {
         const partner = await this.findByUserId(userId);
-        const wallet = await this.walletModel.findOne({ ownerId: partner._id, ownerType: 'partner' }).lean();
+        const wallet = await this.walletModel.findOne({ ownerId: (partner as any)._id, ownerType: 'partner' }).lean();
+
+        // Fetch total referrals count
+        const totalReferrals = await this.userModel.countDocuments({
+            referredBy: (partner as any).partnerCode
+        });
+
+        // Fetch recent referrals
+        const recentReferrals = await this.userModel.find({
+            referredBy: (partner as any).partnerCode
+        }).select('fullName email createdAt').sort({ createdAt: -1 }).limit(5).lean();
+
         return {
             data: {
-                partner: { partnerCode: partner.partnerCode, category: partner.category, commissionRate: partner.commissionRate, status: partner.status, referralLink: partner.referralLink },
-                stats: { totalOrdersReferred: partner.totalOrdersReferred, totalSalesValue: partner.totalSalesValue },
-                wallet: wallet ? { availableBalance: (wallet as any).availableBalance, pendingBalance: (wallet as any).pendingBalance, totalEarned: (wallet as any).totalEarned, totalWithdrawn: (wallet as any).totalWithdrawn } : null,
+                partner: {
+                    partnerCode: partner.partnerCode,
+                    category: partner.category,
+                    commissionRate: partner.commissionRate,
+                    status: partner.status,
+                    referralLink: partner.referralLink,
+                    companyName: partner.companyName
+                },
+                stats: {
+                    totalOrdersReferred: partner.totalOrdersReferred || 0,
+                    totalSalesValue: partner.totalSalesValue || 0,
+                    totalReferrals
+                },
+                wallet: wallet ? {
+                    availableBalance: (wallet as any).availableBalance,
+                    pendingBalance: (wallet as any).pendingBalance,
+                    totalEarned: (wallet as any).totalEarned,
+                    totalWithdrawn: (wallet as any).totalWithdrawn
+                } : null,
+                recentReferrals
             },
+        };
+    }
+
+    async getNetwork(userId: string) {
+        const partner = await this.findByUserId(userId);
+        // Implementation for network tiers
+        return {
+            success: true,
+            data: {
+                tier1: [],
+                tier2: [],
+                summary: { totalActive: 0, totalInactive: 0 }
+            }
+        };
+    }
+
+    async getReferrals(userId: string) {
+        const partner = await this.findByUserId(userId);
+        return {
+            success: true,
+            data: []
         };
     }
 
@@ -142,6 +218,64 @@ export class PartnersService {
         if (!partner) throw new NotFoundException('Partner not found');
         await this.userModel.findByIdAndUpdate(partner.userId, { isActive: false });
         return { message: 'Partner suspended' };
+    }
+
+    async submitKyc(userId: string, kycData: { idType: string; idNumber: string; idDocumentUrl: string }) {
+        const partner = await this.partnerModel.findOne({ userId: new Types.ObjectId(userId) });
+        if (!partner) throw new NotFoundException('Partner profile not found');
+
+        partner.kyc = {
+            ...kycData,
+            status: 'pending',
+            submittedAt: new Date(),
+        };
+
+        await partner.save();
+        return { message: 'KYC documents submitted successfully', data: (partner as any).kyc };
+    }
+
+    async updateKycStatus(id: string, status: 'approved' | 'rejected', reason?: string) {
+        const partner = await this.partnerModel.findById(id).populate('userId');
+        if (!partner) throw new NotFoundException('Partner not found');
+
+        partner.kyc.status = status;
+        partner.kyc.verifiedAt = new Date();
+        if (reason) partner.kyc.rejectionReason = reason;
+
+        await partner.save();
+
+        const user = partner.userId as any;
+        await this.userModel.findByIdAndUpdate(user._id, { applicationStatus: status });
+
+        // Send email notification
+        try {
+            await this.mailService.sendKycStatusUpdate(user.email, user.fullName, status, reason);
+        } catch (err) {
+            this.logger.error(`Failed to send KYC email for partner: ${err.message}`);
+        }
+
+        return { message: `KYC ${status} successfully`, data: (partner as any).kyc };
+    }
+
+    async getReferralQrCode(userId: string): Promise<string> {
+        const partner = await this.partnerModel.findOne({ userId: new Types.ObjectId(userId) }).lean();
+        if (!partner) throw new NotFoundException('Partner profile not found');
+
+        const link = partner.referralLink || `https://wisekings.ng/?ref=${partner.partnerCode}`;
+        try {
+            const qrCodeDataUrl = await QRCode.toDataURL(link, {
+                margin: 2,
+                scale: 10,
+                color: {
+                    dark: '#033958',
+                    light: '#ffffff',
+                },
+            });
+            return qrCodeDataUrl;
+        } catch (err) {
+            this.logger.error(`Failed to generate QR code for partner: ${err.message}`);
+            throw new BadRequestException('Could not generate QR code');
+        }
     }
 
     private async generatePartnerCode(name: string): Promise<string> {

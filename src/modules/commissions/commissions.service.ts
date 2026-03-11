@@ -121,6 +121,34 @@ export class CommissionsService {
         return new PaginatedResult(data as any[], total, page, limit);
     }
 
+    async findByUser(userId: string, paginationDto: PaginationDto) {
+        const { page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc' } = paginationDto;
+        const skip = (page - 1) * limit;
+
+        // Find merchant or partner by userId
+        const merchant = await this.merchantModel.findOne({ userId: new Types.ObjectId(userId) }).lean();
+        const partner = await this.partnerModel.findOne({ userId: new Types.ObjectId(userId) }).lean();
+
+        const filter: any = {};
+        if (merchant) {
+            filter.merchantId = (merchant as any)._id;
+        } else if (partner) {
+            filter.partnerId = (partner as any)._id;
+        } else {
+            // No merchant or partner profile — return empty
+            return new PaginatedResult([], 0, page, limit);
+        }
+
+        const [data, total] = await Promise.all([
+            this.commissionModel.find(filter)
+                .populate('orderId', 'orderNumber totalAmount')
+                .sort({ [sortBy as string]: sortOrder === 'asc' ? 1 : -1 })
+                .skip(skip).limit(limit).lean(),
+            this.commissionModel.countDocuments(filter),
+        ]);
+        return new PaginatedResult(data as any[], total, page, limit);
+    }
+
     async getSummary(ownerId?: string, ownerType?: string) {
         const filter: any = {};
         if (ownerId && ownerType === 'merchant') filter.merchantId = new Types.ObjectId(ownerId);

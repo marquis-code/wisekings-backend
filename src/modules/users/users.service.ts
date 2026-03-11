@@ -9,14 +9,18 @@ import { Model } from 'mongoose';
 import * as bcrypt from 'bcrypt';
 import { User, UserDocument } from './schemas/user.schema';
 import { PaginationDto, PaginatedResult } from '@common/dto';
+import { MailService } from '../mail/mail.service';
+import { InviteUserDto } from './dto/invite-user.dto';
+import { UserType } from '@common/constants';
 
 @Injectable()
 export class UsersService {
     constructor(
         @InjectModel(User.name) private userModel: Model<UserDocument>,
+        private mailService: MailService,
     ) { }
 
-    async findAll(paginationDto: PaginationDto) {
+    async findAll(paginationDto: PaginationDto, userType?: string, applicationStatus?: string) {
         const { page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc', search } = paginationDto;
         const skip = (page - 1) * limit;
 
@@ -28,6 +32,8 @@ export class UsersService {
                 { phone: { $regex: search, $options: 'i' } },
             ];
         }
+        if (userType) filter.userType = userType;
+        if (applicationStatus) filter.applicationStatus = applicationStatus;
 
         const [data, total] = await Promise.all([
             this.userModel
@@ -102,6 +108,38 @@ export class UsersService {
         };
     }
 
+    async approvePartner(id: string) {
+        const user = await this.userModel.findById(id);
+        if (!user || user.userType !== 'partner') {
+            throw new NotFoundException('Partner not found');
+        }
+
+        user.applicationStatus = 'approved';
+        await user.save();
+
+        // Send email notification to partner
+        await this.mailService.sendPartnerApplicationApproved(user.email, user.fullName).catch(console.error);
+
+        return { message: 'Partner approved successfully! Notification email queued.', data: user };
+    }
+
+    async signAgreement(userId: string) {
+        const user = await this.userModel.findById(userId);
+        if (!user || user.userType !== 'partner') {
+            throw new NotFoundException('Partner not found');
+        }
+
+        if (user.applicationStatus !== 'approved') {
+            throw new BadRequestException('Partnership application must be approved by an Admin before signing.');
+        }
+
+        user.agreementStatus = 'signed';
+        user.agreementSignedAt = new Date();
+        await user.save();
+
+        return { message: 'Agreement digitally signed successfully!', data: user };
+    }
+
     async getStats() {
         const [total, active, merchants, partners, customers, admins] =
             await Promise.all([
@@ -122,5 +160,47 @@ export class UsersService {
             throw new NotFoundException('User not found');
         }
         return { message: 'User deleted successfully' };
+    }
+
+    async inviteUser(inviteDto: InviteUserDto) {
+        const { email, fullName, role } = inviteDto;
+
+        const existingUser = await this.userModel.findOne({ email: email.toLowerCase() });
+        if (existingUser) {
+            throw new ConflictException('A user with this email already exists');
+        }
+
+        const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+        const otpExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+        // Create a user without a password (it will be set during the "Join" process)
+        // We'll use a placeholder password for now because it's required in the schema, 
+        // but the user will reset it.
+        const tempPassword = await bcrypt.hash(Math.random().toString(36), 12);
+
+        const user = await this.userModel.create({
+            email: email.toLowerCase(),
+            fullName,
+            role,
+            userType: UserType.ADMIN,
+            password: tempPassword,
+            isInvited: true,
+            isEmailVerified: false,
+            isActive: true,
+            otpCode,
+            otpExpires,
+        });
+
+        await this.mailService.sendAdminInvitationEmail(user.email, user.fullName, otpCode).catch(e => console.error('Failed to send invitation email', e));
+
+        return {
+            message: 'Invitation sent successfully',
+            data: {
+                _id: user._id,
+                email: user.email,
+                fullName: user.fullName,
+                role: user.role,
+            },
+        };
     }
 }

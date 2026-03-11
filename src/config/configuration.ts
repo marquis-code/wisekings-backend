@@ -10,13 +10,13 @@ export const validationSchema = Joi.object({
     JWT_ACCESS_EXPIRATION: Joi.string().default('15m'),
     JWT_REFRESH_SECRET: Joi.string().required(),
     JWT_REFRESH_EXPIRATION: Joi.string().default('7d'),
-    AWS_ACCESS_KEY_ID: Joi.string().required(),
-    AWS_SECRET_ACCESS_KEY: Joi.string().required(),
-    AWS_REGION: Joi.string().default('eu-west-1'),
-    AWS_S3_BUCKET: Joi.string().required(),
+    CLOUDINARY_CLOUD_NAME: Joi.string().required(),
+    CLOUDINARY_API_KEY: Joi.string().required(),
+    CLOUDINARY_API_SECRET: Joi.string().required(),
     PAYSTACK_SECRET_KEY: Joi.string().required(),
     PAYSTACK_PUBLIC_KEY: Joi.string().required(),
     PAYSTACK_WEBHOOK_SECRET: Joi.string().optional(),
+    PAYSTACK_CALLBACK_URL: Joi.string().optional(),
     STRIPE_SECRET_KEY: Joi.string().required(),
     STRIPE_PUBLIC_KEY: Joi.string().required(),
     STRIPE_WEBHOOK_SECRET: Joi.string().optional(),
@@ -46,17 +46,17 @@ export const jwtConfig = registerAs('jwt', () => ({
     refreshExpiration: process.env.JWT_REFRESH_EXPIRATION || '7d',
 }));
 
-export const awsConfig = registerAs('aws', () => ({
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-    region: process.env.AWS_REGION || 'eu-west-1',
-    s3Bucket: process.env.AWS_S3_BUCKET,
+export const cloudinaryConfig = registerAs('cloudinary', () => ({
+    cloudName: process.env.CLOUDINARY_CLOUD_NAME,
+    apiKey: process.env.CLOUDINARY_API_KEY,
+    apiSecret: process.env.CLOUDINARY_API_SECRET,
 }));
 
 export const paystackConfig = registerAs('paystack', () => ({
     secretKey: process.env.PAYSTACK_SECRET_KEY,
     publicKey: process.env.PAYSTACK_PUBLIC_KEY,
     webhookSecret: process.env.PAYSTACK_WEBHOOK_SECRET,
+    callbackUrl: process.env.PAYSTACK_CALLBACK_URL,
 }));
 
 export const stripeConfig = registerAs('stripe', () => ({
@@ -85,7 +85,7 @@ export default () => ({
     app: appConfig(),
     database: databaseConfig(),
     jwt: jwtConfig(),
-    aws: awsConfig(),
+    cloudinary: cloudinaryConfig(),
     paystack: paystackConfig(),
     stripe: stripeConfig(),
     encryption: encryptionConfig(),
