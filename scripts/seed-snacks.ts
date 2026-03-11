@@ -6,7 +6,7 @@ dotenv.config({ path: path.join(__dirname, '../.env') });
 
 const MONGODB_URI = process.env.MONGODB_URI;
 
-// Schemas
+// ── Schemas ──────────────────────────────────────────────────────────────────
 const CategorySchema = new mongoose.Schema({
     name: { type: String, required: true, trim: true },
     slug: { type: String, required: true, unique: true, lowercase: true, trim: true },
@@ -28,11 +28,6 @@ const ProductSchema = new mongoose.Schema({
     isActive: { type: Boolean, default: true },
     sku: { type: String, trim: true },
     weight: { type: Number, default: 0, min: 0 },
-    dimensions: {
-        length: Number,
-        width: Number,
-        height: Number,
-    },
     tags: { type: [String], default: [] },
     slug: { type: String, required: true, unique: true, lowercase: true, trim: true },
     totalSold: { type: Number, default: 0 },
@@ -43,201 +38,189 @@ const ProductSchema = new mongoose.Schema({
 const Category = mongoose.model('Category', CategorySchema, 'categories');
 const Product = mongoose.model('Product', ProductSchema, 'products');
 
+// ── Real Wisekings Categories ─────────────────────────────────────────────────
 const categories = [
-    { name: 'Chips & Crisps', slug: 'chips-crisps', description: 'Crunchy and salty snacks for any time.' },
-    { name: 'Cookies & Biscuits', slug: 'cookies-biscuits', description: 'Sweet and savory baked treats.' },
-    { name: 'Chocolate & Candy', slug: 'chocolate-candy', description: 'For those with a sweet tooth.' },
-    { name: 'Nuts & Seeds', slug: 'nuts-seeds', description: 'Healthy and protein-packed snacks.' },
-    { name: 'Popcorn', slug: 'popcorn', description: 'The perfect companion for movie nights.' },
-    { name: 'Fruit Snacks', slug: 'fruit-snacks', description: 'Naturally sweet and chewy fruit-based snacks.' },
+    {
+        name: 'Popcorn',
+        slug: 'popcorn',
+        description: 'Light, crispy popcorn snacks – perfect for movie nights and everyday munching.',
+        sortOrder: 1,
+    },
+    {
+        name: 'Plantain Chips',
+        slug: 'plantain-chips',
+        description: 'Crunchy and flavourful ripe plantain chips in a variety of pack sizes.',
+        sortOrder: 2,
+    },
+    {
+        name: 'Potato Chips',
+        slug: 'potato-chips',
+        description: 'Classic potato chips available in jars, packs, and sachets.',
+        sortOrder: 3,
+    },
 ];
 
+// ── Real Wisekings Products ───────────────────────────────────────────────────
 const products = [
-    // Chips & Crisps
+    // ── Popcorn ───────────────────────────────────────────────────────────────
     {
-        name: 'Classic Salted Potato Chips',
-        description: 'Perfectly thin and crispy potato chips with a touch of sea salt.',
-        price: 3.50,
-        compareAtPrice: 4.00,
-        stock: 100,
-        categorySlug: 'chips-crisps',
-        sku: 'CHP-CLS-001',
-        weight: 150,
-        tags: ['salty', 'potato', 'classic'],
-        slug: 'classic-salted-potato-chips'
-    },
-    {
-        name: 'Spicy Barbecue Crisps',
-        description: 'Bold barbecue flavor with a spicy kick.',
-        price: 3.75,
-        stock: 80,
-        categorySlug: 'chips-crisps',
-        sku: 'CHP-BBQ-002',
-        weight: 150,
-        tags: ['spicy', 'barbecue', 'crunchy'],
-        slug: 'spicy-barbecue-crisps'
-    },
-    // Cookies & Biscuits
-    {
-        name: 'Double Chocolate Chip Cookies',
-        description: 'Soft and chewy cookies loaded with dark chocolate chips.',
-        price: 5.00,
-        compareAtPrice: 6.50,
-        stock: 50,
-        categorySlug: 'cookies-biscuits',
-        sku: 'COK-DCH-001',
-        weight: 200,
-        tags: ['sweet', 'chocolate', 'chewy'],
-        slug: 'double-chocolate-chip-cookies'
-    },
-    {
-        name: 'Oatmeal Raisin Biscuits',
-        description: 'Wholesome oats and sweet raisins in a classic biscuit.',
-        price: 4.50,
-        stock: 60,
-        categorySlug: 'cookies-biscuits',
-        sku: 'COK-OAT-002',
-        weight: 200,
-        tags: ['healthy', 'oatmeal', 'raisin'],
-        slug: 'oatmeal-raisin-biscuits'
-    },
-    // Chocolate & Candy
-    {
-        name: 'Assorted Fruit Gummies',
-        description: 'A mix of strawberry, orange, and lemon flavored gummy candies.',
-        price: 2.99,
-        stock: 120,
-        categorySlug: 'chocolate-candy',
-        sku: 'CAN-FRT-001',
-        weight: 100,
-        tags: ['sweet', 'gummy', 'fruit'],
-        slug: 'assorted-fruit-gummies'
-    },
-    {
-        name: 'Dark Chocolate Sea Salt Bar',
-        description: 'Rich 70% dark chocolate with a hint of sea salt.',
-        price: 4.99,
-        stock: 45,
-        categorySlug: 'chocolate-candy',
-        sku: 'CAN-DCH-002',
-        weight: 80,
-        tags: ['chocolate', 'dark', 'fancy'],
-        slug: 'dark-chocolate-sea-salt-bar'
-    },
-    // Nuts & Seeds
-    {
-        name: 'Roasted Salted Almonds',
-        description: 'Premium roasted almonds lightly seasoned with sea salt.',
-        price: 6.99,
-        compareAtPrice: 8.00,
-        stock: 30,
-        categorySlug: 'nuts-seeds',
-        sku: 'NUT-ALM-001',
-        weight: 250,
-        tags: ['healthy', 'nuts', 'protein'],
-        slug: 'roasted-salted-almonds'
-    },
-    {
-        name: 'Honey Roasted Peanuts',
-        description: 'Sweet and crunchy peanuts roasted with honey.',
-        price: 3.99,
+        name: 'Popcorn 30pcs Per Bag',
+        description: 'A generous bag of 30 individually portioned Wisekings popcorn packs. Light, airy, and bursting with flavour — ideal for sharing at events, parties, or as daily snacks.',
+        price: 2800,
+        compareAtPrice: 3000,
         stock: 150,
-        categorySlug: 'nuts-seeds',
-        sku: 'NUT-PNT-002',
+        categorySlug: 'popcorn',
+        sku: 'WK-POP-30B',
         weight: 300,
-        tags: ['sweet', 'salty', 'nuts'],
-        slug: 'honey-roasted-peanuts'
+        tags: ['popcorn', 'sharing', 'party', 'bulk'],
+        slug: 'popcorn-30pcs-per-bag',
     },
-    // Popcorn
+
+    // ── Potato Chips ──────────────────────────────────────────────────────────
     {
-        name: 'Movie Theater Butter Popcorn',
-        description: 'Extra buttery and salty popcorn for the ultimate movie experience.',
-        price: 2.50,
-        stock: 200,
-        categorySlug: 'popcorn',
-        sku: 'POP-BUT-001',
-        weight: 100,
-        tags: ['salty', 'butter', 'classic'],
-        slug: 'movie-theater-butter-popcorn'
+        name: 'Potato Chips 220g Jar',
+        description: 'Crispy, golden potato chips packed in a resealable 220g jar. NAFDAC-certified for your peace of mind. Great for kids, offices, and home snacking.',
+        price: 3000,
+        compareAtPrice: 3200,
+        stock: 120,
+        categorySlug: 'potato-chips',
+        sku: 'WK-CHI-220J',
+        weight: 220,
+        tags: ['potato chips', 'jar', 'crispy'],
+        slug: 'potato-chips-220g-jar',
     },
     {
-        name: 'Sweet & Salty Kettle Corn',
-        description: 'Hand-popped popcorn with a perfect balance of sweet and salty.',
-        price: 3.25,
-        stock: 90,
-        categorySlug: 'popcorn',
-        sku: 'POP-KET-002',
-        weight: 120,
-        tags: ['sweet', 'salty', 'kettle'],
-        slug: 'sweet-and-salty-kettle-corn'
+        name: 'Potato Chips 350g Pack',
+        description: 'Extra value 350g pack of Wisekings signature potato chips. Crunchy and perfectly seasoned for a satisfying snack experience.',
+        price: 3500,
+        compareAtPrice: 4000,
+        stock: 100,
+        categorySlug: 'potato-chips',
+        sku: 'WK-CHI-350P',
+        weight: 350,
+        tags: ['potato chips', 'pack', 'value'],
+        slug: 'potato-chips-350g-pack',
     },
-    // Fruit Snacks
     {
-        name: 'Dried Mango Slices',
-        description: 'Naturally sweet and chewy dried mango slices.',
-        price: 5.99,
+        name: 'Potato Chips Sachet',
+        description: 'Convenient and pocket-friendly Wisekings potato chips sachet. The perfect on-the-go snack for any time of day.',
+        price: 2800,
+        compareAtPrice: 3000,
+        stock: 300,
+        categorySlug: 'potato-chips',
+        sku: 'WK-CHI-SAC',
+        weight: 50,
+        tags: ['potato chips', 'sachet', 'on-the-go', 'affordable'],
+        slug: 'potato-chips-sachet',
+    },
+
+    // ── Plantain Chips ────────────────────────────────────────────────────────
+    {
+        name: 'Ripe Plantain Chips 300g Jar',
+        description: 'Sweet and crunchy ripe plantain chips in a 300g jar. Made from carefully selected ripe plantains — a uniquely Nigerian snack with a premium twist.',
+        price: 4300,
+        compareAtPrice: 4800,
+        stock: 80,
+        categorySlug: 'plantain-chips',
+        sku: 'WK-PLT-300J',
+        weight: 300,
+        tags: ['plantain chips', 'jar', 'ripe', 'premium'],
+        slug: 'ripe-plantain-chips-300g-jar',
+    },
+    {
+        name: 'Ripe Plantain Chips 30g x 24pcs Per Bag',
+        description: 'A bag of 24 x 30g ripe plantain chip pouches from Wisekings. Perfect for retail distribution, bulk orders, or corporate gifting.',
+        price: 8500,
+        compareAtPrice: 10500,
+        stock: 60,
+        categorySlug: 'plantain-chips',
+        sku: 'WK-PLT-30G24',
+        weight: 720,
+        tags: ['plantain chips', 'bulk', 'retail', '24-pack'],
+        slug: 'ripe-plantain-chips-30g-x-24pcs-per-bag',
+    },
+    {
+        name: 'Ripe Plantain Chips 50g Pouch x 12pcs',
+        description: 'A carton of 12 x 50g ripe plantain chips pouches. Great value for retailers and distributors who want a consistently high-quality product.',
+        price: 10200,
+        compareAtPrice: 10800,
+        stock: 50,
+        categorySlug: 'plantain-chips',
+        sku: 'WK-PLT-50G12',
+        weight: 600,
+        tags: ['plantain chips', 'pouch', 'carton', '12-pack'],
+        slug: 'ripe-plantain-chips-50g-pouch-x-12pcs',
+    },
+    {
+        name: 'Ripe Plantain Chips 50g Pouch x 24pcs',
+        description: 'Wisekings ripe plantain chips in convenient 50g pouches, sold as a carton of 24. Ideal for wholesale buyers or stock-up purchases.',
+        price: 19200,
+        compareAtPrice: 20000,
         stock: 40,
-        categorySlug: 'fruit-snacks',
-        sku: 'FRT-MNG-001',
-        weight: 150,
-        tags: ['healthy', 'fruit', 'chewy'],
-        slug: 'dried-mango-slices'
-    }
+        categorySlug: 'plantain-chips',
+        sku: 'WK-PLT-50G24',
+        weight: 1200,
+        tags: ['plantain chips', 'pouch', 'wholesale', '24-pack'],
+        slug: 'ripe-plantain-chips-50g-pouch-x-24pcs',
+    },
+    {
+        name: 'Ripe Plantain Chips 50g Pouch x 50pcs',
+        description: 'Our largest plantain chips bulk pack — 50 x 50g pouches per carton. Perfect for large-scale retail, supermarkets, and distributor partners.',
+        price: 37500,
+        compareAtPrice: 42500,
+        stock: 25,
+        categorySlug: 'plantain-chips',
+        sku: 'WK-PLT-50G50',
+        weight: 2500,
+        tags: ['plantain chips', 'pouch', 'bulk', 'distributor', '50-pack'],
+        slug: 'ripe-plantain-chips-50g-pouch-x-50pcs',
+    },
 ];
 
+// ── Seed Function ─────────────────────────────────────────────────────────────
 async function seedSnacks() {
     if (!MONGODB_URI) {
-        console.error('MONGODB_URI is not defined in .env');
+        console.error('❌  MONGODB_URI is not defined in .env');
         process.exit(1);
     }
 
     try {
         await mongoose.connect(MONGODB_URI);
-        console.log('Connected to MongoDB');
+        console.log('✅  Connected to MongoDB');
 
-        // Clear existing categories and products (optional, but good for clean seed)
-        // await Category.deleteMany({});
-        // await Product.deleteMany({});
+        // Clear existing placeholder data
+        console.log('🗑️   Clearing old categories and products...');
+        await (Category as any).deleteMany({});
+        await (Product as any).deleteMany({});
+        console.log('   Cleared.');
 
-        console.log('Seeding categories...');
-        const createdCategories = [];
+        // Seed categories
+        console.log('\n📂  Seeding categories...');
+        const createdCategories: any[] = [];
         for (const catData of categories) {
-            let category = await Category.findOne({ slug: catData.slug });
-            if (!category) {
-                category = await Category.create(catData);
-                console.log(`Created category: ${catData.name}`);
-            } else {
-                console.log(`Category already exists: ${catData.name}`);
-            }
+            const category = await (Category as any).create(catData);
+            console.log(`   ✔  ${catData.name}`);
             createdCategories.push(category);
         }
 
-        console.log('Seeding products...');
+        // Seed products
+        console.log('\n🛒  Seeding products...');
         for (const prodData of products) {
             const category = createdCategories.find(c => c.slug === prodData.categorySlug);
             if (!category) {
-                console.warn(`Category not found for product: ${prodData.name} (slug: ${prodData.categorySlug})`);
+                console.warn(`   ⚠  Category not found for: ${prodData.name}`);
                 continue;
             }
 
             const { categorySlug, ...productPayload } = prodData;
-            const existingProduct = await Product.findOne({ slug: productPayload.slug });
-
-            if (!existingProduct) {
-                await Product.create({
-                    ...productPayload,
-                    category: category._id
-                });
-                console.log(`Created product: ${productPayload.name}`);
-            } else {
-                console.log(`Product already exists: ${productPayload.name}`);
-            }
+            await (Product as any).create({ ...productPayload, category: category._id });
+            console.log(`   ✔  ${productPayload.name}  (₦${productPayload.price.toLocaleString()})`);
         }
 
-        console.log('Seeding completed successfully!');
+        console.log('\n🎉  Seeding completed successfully!');
 
     } catch (error) {
-        console.error('Error seeding snacks:', error);
+        console.error('❌  Error seeding:', error);
     } finally {
         await mongoose.disconnect();
         process.exit(0);
