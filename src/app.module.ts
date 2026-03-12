@@ -28,6 +28,9 @@ import { MailModule } from './modules/mail/mail.module';
 import { WebsocketsModule } from './modules/websockets/websockets.module';
 import { EmailTemplatesModule } from './modules/email-templates/email-templates.module';
 import { CurrenciesModule } from './modules/currencies/currencies.module';
+import { ShippingModule } from './modules/shipping/shipping.module';
+import { InvestmentsModule } from './modules/investments/investments.module';
+import { SystemSettingsModule } from './modules/system-settings/system-settings.module';
 
 import { GlobalExceptionFilter } from './common/filters';
 import { TransformInterceptor, AuditInterceptor } from './common/interceptors';
@@ -85,6 +88,9 @@ import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
         UploadsModule,
         MarketingModule,
         CurrenciesModule,
+        ShippingModule,
+        InvestmentsModule,
+        SystemSettingsModule,
     ],
     providers: [
         // Global Filter

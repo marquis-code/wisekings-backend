@@ -25,6 +25,18 @@ export class PaginationDto {
     @IsOptional()
     @IsString()
     search?: string;
+
+    @IsOptional()
+    @IsString()
+    category?: string;
+
+    @IsOptional()
+    @IsString()
+    status?: string;
+
+    @IsOptional()
+    @IsString()
+    kycStatus?: string;
 }
 
 export class PaginatedResult<T> {

@@ -6,6 +6,7 @@ import { Order, OrderDocument } from './schemas/order.schema';
 import { OrderStatus, PaymentStatus } from '@common/constants';
 import { PaginationDto, PaginatedResult } from '@common/dto';
 import { CommissionsService } from '../commissions/commissions.service';
+import { ShippingService } from '../shipping/shipping.service';
 
 @Injectable()
 export class OrdersService {
@@ -15,30 +16,37 @@ export class OrdersService {
         @InjectModel(Order.name) private orderModel: Model<OrderDocument>,
         @InjectModel('User') private userModel: Model<any>,
         private commissionsService: CommissionsService,
+        private shippingService: ShippingService,
     ) { }
 
     async create(dto: any, customerId: string) {
         const orderNumber = `WK-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
+        let shippingFee = 0;
+        if (dto.deliveryMethod !== 'pickup') {
+            const result = await this.shippingService.calculateDeliveryFee(
+                dto.deliveryLocation?.lat || 0,
+                dto.deliveryLocation?.lng || 0,
+                dto.deliveryMethod
+            );
+            shippingFee = result.fee;
+        }
+
         // Handle point redemption
-        let finalAmount = dto.totalAmount;
+        let finalAmount = dto.totalAmount + shippingFee;
         if (dto.redeemPoints && dto.pointsToRedeem > 0) {
             const user = await this.userModel.findById(customerId);
             if (user && user.points >= dto.pointsToRedeem) {
-                // 1 point = 1 unit of currency (e.g. 1 NGN)
                 const discount = dto.pointsToRedeem;
                 finalAmount = Math.max(0, finalAmount - discount);
-
-                // Deduct points immediately or upon order placement
                 user.points -= dto.pointsToRedeem;
                 await user.save();
-
-                this.logger.log(`User ${customerId} redeemed ${dto.pointsToRedeem} points. Discount: ${discount}`);
             }
         }
 
         const order = await this.orderModel.create({
             ...dto,
+            shippingFee,
             totalAmount: finalAmount,
             orderNumber,
             customerId: new Types.ObjectId(customerId),

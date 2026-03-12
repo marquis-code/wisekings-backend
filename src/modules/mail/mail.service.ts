@@ -182,6 +182,20 @@ export class MailService {
     return this.sendEmail(email, subject, html);
   }
 
+  async sendKycSubmittedEmail(email: string, name: string) {
+    const subject = 'KYC Documents Received';
+    const html = this.brandWrapper(
+      'Documents Received',
+      `
+      <p>Hi ${name},</p>
+      <p>We have successfully received your KYC verification documents. Our team is currently reviewing them.</p>
+      <p>This process usually takes 24-48 hours. We will notify you via email as soon as the review is complete.</p>
+      <p>Thank you for partnering with WiseKings.</p>
+      `
+    );
+    return this.sendEmail(email, subject, html);
+  }
+
   async sendKycStatusUpdate(email: string, name: string, status: 'approved' | 'rejected', reason?: string) {
     const isApproved = status === 'approved';
     const title = isApproved ? 'KYC Verified' : 'KYC Action Required';
@@ -208,5 +222,34 @@ export class MailService {
       `;
 
     return this.sendEmail(email, subject, this.brandWrapper(title, content));
+  }
+
+  async sendInvestmentConfirmation(email: string, name: string, investment: any) {
+    const subject = 'Investment Confirmed - WiseKings Portfolio';
+    const html = this.brandWrapper(
+      'Investment Received',
+      `
+      <p>Hi ${name},</p>
+      <p>Your investment for <strong>${investment.customer}</strong> (Invoice: ${investment.invoiceNo}) has been successfully recorded.</p>
+      <p>Amount: <strong>₦${new Intl.NumberFormat('en-NG').format(investment.invoiceValue)}</strong><br>
+      Due Date: ${new Date(investment.dueDate).toLocaleDateString()}</p>
+      <p>You can track the progress of this investment and your returns on your dashboard.</p>
+      `
+    );
+    return this.sendEmail(email, subject, html);
+  }
+
+  async sendInvestmentUpdate(email: string, name: string, investment: any) {
+    const subject = 'Investment Update - Payment Received';
+    const html = this.brandWrapper(
+      'Payment Settled',
+      `
+      <p>Hi ${name},</p>
+      <p>Good news! The payment for your investment (Invoice: ${investment.invoiceNo}) has been received and settled.</p>
+      <p>Realized Return: <strong>₦${new Intl.NumberFormat('en-NG').format(investment.realizedReturn)}</strong></p>
+      <p>The funds have been credited to your wallet. Thank you for partnering with WiseKings.</p>
+      `
+    );
+    return this.sendEmail(email, subject, html);
   }
 }

@@ -22,6 +22,9 @@ export class Category {
 
     @Prop({ default: 0 })
     sortOrder: number;
+
+    @Prop({ required: true, unique: true, lowercase: true, trim: true })
+    slug: string;
 }
 
 export const CategorySchema = SchemaFactory.createForClass(Category);

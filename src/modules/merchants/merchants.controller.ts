@@ -33,8 +33,9 @@ export class MerchantsController {
         @Query('status') status?: string,
         @Query('category') category?: string,
         @Query('rank') rank?: string,
+        @Query('kycStatus') kycStatus?: string,
     ) {
-        return this.merchantsService.findAll(paginationDto, { status, category, rank });
+        return this.merchantsService.findAll(paginationDto, { status, category, rank, kycStatus });
     }
 
     // --- "me" routes MUST be defined BEFORE ":id" to avoid casting "me" as ObjectId ---
@@ -111,24 +112,34 @@ export class MerchantsController {
         return this.merchantsService.activate(id);
     }
 
-    @Post('me/kyc')
+    @Get('me/kyc')
     @Roles('merchant')
     @UseGuards(RolesGuard)
-    async submitMyKyc(
-        @CurrentUser('_id') userId: string,
-        @Body() kycData: { idType: string; idNumber: string; idDocumentUrl: string },
-    ) {
-        return this.merchantsService.submitKyc(userId, kycData);
+    async getMyKyc(@CurrentUser('_id') userId: string) {
+        const merchant = await this.merchantsService.findByUserId(userId);
+        const merchantDoc = await this.merchantsService.initializeKycDocuments(merchant as any);
+        return { data: merchantDoc.kyc, overallStatus: this.merchantsService.getOverallKycStatus(merchantDoc) };
     }
 
-    @Patch(':id/kyc-status')
+    @Post('me/kyc/document')
+    @Roles('merchant')
+    @UseGuards(RolesGuard)
+    async submitKycDocument(
+        @CurrentUser('_id') userId: string,
+        @Body() docData: { documentType: string; idNumber: string; documentUrl: string },
+    ) {
+        return this.merchantsService.submitKycDocument(userId, docData);
+    }
+
+    @Patch(':id/kyc-document-status')
     @Roles('superadmin', 'admin')
     @UseGuards(RolesGuard)
-    async updateKycStatus(
+    async updateKycDocumentStatus(
         @Param('id') id: string,
+        @Body('documentType') documentType: string,
         @Body('status') status: 'approved' | 'rejected',
         @Body('reason') reason?: string,
     ) {
-        return this.merchantsService.updateKycStatus(id, status, reason);
+        return this.merchantsService.updateKycDocumentStatus(id, documentType, status, reason);
     }
 }

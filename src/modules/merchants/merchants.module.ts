@@ -8,10 +8,12 @@ import { WalletSchema } from '../wallets/schemas/wallet.schema';
 import { Order, OrderSchema } from '../orders/schemas/order.schema';
 
 import { MailModule } from '../mail/mail.module';
+import { SystemSettingsModule } from '../system-settings/system-settings.module';
 
 @Module({
     imports: [
         MailModule,
+        SystemSettingsModule,
         MongooseModule.forFeature([
             { name: Merchant.name, schema: MerchantSchema },
             { name: User.name, schema: UserSchema },

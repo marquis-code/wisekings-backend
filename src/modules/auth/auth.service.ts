@@ -128,7 +128,7 @@ export class AuthService {
                     role: user.role,
                     avatar: user.avatar,
                 },
-                ...tokens,
+                tokens,
             },
         };
     }
@@ -226,7 +226,7 @@ export class AuthService {
                     role: user.role,
                     avatar: user.avatar,
                 },
-                ...tokens,
+                tokens,
             },
         };
     }
@@ -243,7 +243,9 @@ export class AuthService {
             throw new UnauthorizedException('OTP code has expired');
         }
 
-        // Clear OTP
+        // Clear OTP and Activate account
+        user.isEmailVerified = true;
+        user.isActive = true;
         user.otpCode = undefined;
         user.otpExpires = undefined;
         await user.save();
@@ -268,7 +270,7 @@ export class AuthService {
                     role: user.role,
                     avatar: user.avatar,
                 },
-                ...tokens,
+                tokens,
             },
         };
     }
@@ -331,12 +333,18 @@ export class AuthService {
                         role: user.role,
                         avatar: user.avatar,
                     },
-                    ...tokens,
+                    tokens,
                 },
             };
         } catch (error) {
-            this.logger.error('Social login failed', error);
-            throw new UnauthorizedException('Social authentication failed');
+            this.logger.error(`Social login failed for token: ${idToken?.substring(0, 20)}...`);
+            this.logger.error(error.stack || error.message);
+            
+            if (error instanceof UnauthorizedException || error instanceof BadRequestException) {
+                throw error;
+            }
+            
+            throw new UnauthorizedException(`Social authentication failed: ${error.message || 'Unknown error'}`);
         }
     }
 
@@ -372,7 +380,7 @@ export class AuthService {
 
             return {
                 message: 'Token refreshed successfully',
-                data: tokens,
+                data: { tokens },
             };
         } catch (error) {
             throw new UnauthorizedException('Invalid or expired refresh token');
@@ -481,7 +489,7 @@ export class AuthService {
                     userType: user.userType,
                     role: user.role,
                 },
-                ...tokens,
+                tokens,
             },
         };
     }

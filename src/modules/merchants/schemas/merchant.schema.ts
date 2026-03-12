@@ -74,24 +74,38 @@ export class Merchant {
     lastCategoryUpgradeAt: Date;
     @Prop({
         type: {
-            status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
-            idType: { type: String },
-            idNumber: { type: String },
-            idDocumentUrl: { type: String },
-            rejectionReason: { type: String },
-            submittedAt: { type: Date },
-            verifiedAt: { type: Date },
+            documents: [{
+                documentType: { type: String, required: true },
+                documentLabel: { type: String, required: true },
+                idNumber: { type: String, default: '' },
+                documentUrl: { type: String, default: '' },
+                status: { type: String, enum: ['not_submitted', 'pending', 'approved', 'rejected'], default: 'not_submitted' },
+                isRequired: { type: Boolean, default: true },
+                requiresIdNumber: { type: Boolean, default: true },
+                requiresFileUpload: { type: Boolean, default: true },
+                rejectionReason: { type: String },
+                submittedAt: { type: Date },
+                verifiedAt: { type: Date },
+            }],
+            status: { type: String, enum: ['not_submitted', 'pending', 'approved', 'rejected'], default: 'not_submitted' },
         },
-        default: { status: 'pending' },
+        default: { documents: [], status: 'not_submitted' },
     })
     kyc: {
-        status: string;
-        idType?: string;
-        idNumber?: string;
-        idDocumentUrl?: string;
-        rejectionReason?: string;
-        submittedAt?: Date;
-        verifiedAt?: Date;
+        documents: {
+            documentType: string;
+            documentLabel: string;
+            idNumber: string;
+            documentUrl: string;
+            status: 'not_submitted' | 'pending' | 'approved' | 'rejected';
+            isRequired: boolean;
+            requiresIdNumber: boolean;
+            requiresFileUpload: boolean;
+            rejectionReason?: string;
+            submittedAt?: Date;
+            verifiedAt?: Date;
+        }[];
+        status: 'not_submitted' | 'pending' | 'approved' | 'rejected';
     };
 }
 

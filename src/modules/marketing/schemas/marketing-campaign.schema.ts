@@ -10,12 +10,21 @@ export class MarketingCampaign {
 
     @Prop({ required: true })
     subject: string;
+    
+    @Prop()
+    previewText: string;
+    
+    @Prop()
+    bannerUrl: string;
 
     @Prop({ required: true })
     content: string;
 
-    @Prop({ type: String, enum: ['merchants', 'partners', 'customers', 'all'], required: true })
+    @Prop({ type: String, enum: ['merchants', 'partners', 'customers', 'all', 'custom'], required: true })
     targetAudience: string;
+
+    @Prop({ type: [String], default: [] })
+    customEmails: string[];
 
     @Prop({ type: Types.ObjectId, ref: 'User' })
     createdBy: Types.ObjectId;

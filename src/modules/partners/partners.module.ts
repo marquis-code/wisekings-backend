@@ -7,10 +7,12 @@ import { User, UserSchema } from '../users/schemas/user.schema';
 import { WalletSchema } from '../wallets/schemas/wallet.schema';
 
 import { MailModule } from '../mail/mail.module';
+import { SystemSettingsModule } from '../system-settings/system-settings.module';
 
 @Module({
     imports: [
         MailModule,
+        SystemSettingsModule,
         MongooseModule.forFeature([
             { name: Partner.name, schema: PartnerSchema },
             { name: User.name, schema: UserSchema },

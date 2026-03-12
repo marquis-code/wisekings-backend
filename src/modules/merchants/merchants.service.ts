@@ -26,6 +26,7 @@ import { PaginationDto, PaginatedResult } from '../../common/dto';
 import { EncryptionUtil } from '../../common/utils';
 
 import { MailService } from '../mail/mail.service';
+import { SystemSettingsService } from '../system-settings/system-settings.service';
 import * as QRCode from 'qrcode';
 
 @Injectable()
@@ -38,12 +39,14 @@ export class MerchantsService {
         @InjectModel('Wallet') private walletModel: Model<WalletDocument>,
         @InjectModel(Order.name) private orderModel: Model<OrderDocument>,
         private readonly mailService: MailService,
+        private readonly systemSettingsService: SystemSettingsService,
     ) { }
 
     async register(dto: RegisterMerchantDto) {
+        const email = dto.email.toLowerCase().trim();
         // Check for existing merchant by email
         const existingMerchant = await this.merchantModel.findOne({
-            email: dto.email.toLowerCase(),
+            email,
         });
         if (existingMerchant) {
             throw new ConflictException('A merchant with this email already exists');
@@ -55,7 +58,7 @@ export class MerchantsService {
 
         // Create user account
         const existingUser = await this.userModel.findOne({
-            email: dto.email.toLowerCase(),
+            email,
         });
         let userId: Types.ObjectId;
 
@@ -68,7 +71,7 @@ export class MerchantsService {
         } else {
             const hashedPassword = await bcrypt.hash(dto.password, 12);
             const user = await this.userModel.create({
-                email: dto.email.toLowerCase(),
+                email,
                 password: hashedPassword,
                 fullName: dto.fullName,
                 phone: dto.phone,
@@ -96,7 +99,7 @@ export class MerchantsService {
             merchantCode,
             fullName: dto.fullName,
             phone: dto.phone,
-            email: dto.email.toLowerCase(),
+            email,
             bankAccountDetails: bankDetails,
             category: dto.category,
             commissionRate,
@@ -136,7 +139,21 @@ export class MerchantsService {
                 { merchantCode: { $regex: search, $options: 'i' } },
             ];
         }
-        if (filters?.status) filter.status = filters.status;
+        if (filters?.status) {
+            if (filters.status === 'pending') {
+                filter.$or = filter.$or || [];
+                filter.$or.push({ status: 'pending' }, { 'kyc.status': 'pending' });
+            } else {
+                filter.status = filters.status;
+            }
+        }
+        if (filters?.kycStatus) {
+            if (filters.kycStatus === 'submitted') {
+                filter['kyc.status'] = { $ne: 'not_submitted' };
+            } else {
+                filter['kyc.status'] = filters.kycStatus;
+            }
+        }
         if (filters?.category) filter.category = filters.category;
         if (filters?.rank) filter.rank = filters.rank;
 
@@ -185,10 +202,9 @@ export class MerchantsService {
         return merchant;
     }
 
-    async findByUserId(userId: string) {
+    async findByUserId(userId: string): Promise<MerchantDocument> {
         const merchant = await this.merchantModel
-            .findOne({ userId: new Types.ObjectId(userId) })
-            .lean();
+            .findOne({ userId: new Types.ObjectId(userId) });
 
         if (!merchant) {
             throw new NotFoundException('Merchant profile not found');
@@ -196,52 +212,37 @@ export class MerchantsService {
         return merchant;
     }
 
-    async findOrCreateByUserId(userId: string) {
+    async findOrCreateByUserId(userId: string): Promise<MerchantDocument> {
         let merchant = await this.merchantModel
-            .findOne({ userId: new Types.ObjectId(userId) })
-            .lean();
+            .findOne({ userId: new Types.ObjectId(userId) });
 
         if (!merchant) {
             // Auto-create merchant profile for users who registered via /auth/register
-            const user = await this.userModel.findById(userId).lean();
+            const user = await this.userModel.findById(userId);
             if (!user) {
                 throw new NotFoundException('User not found');
             }
 
-            // Check if a merchant already exists with this email (to avoid duplicate key error)
-            merchant = await this.merchantModel.findOne({ email: user.email.toLowerCase() }).lean();
+            const merchantCode = `WKM-${user.fullName?.substring(0, 3).toUpperCase() || 'WK'}-${Math.floor(1000 + Math.random() * 9000)}`;
+            
+            merchant = await this.merchantModel.create({
+                userId: user._id,
+                merchantCode,
+                businessName: user.fullName || 'My Business',
+                email: user.email,
+                phone: user.phone || '',
+                status: MerchantStatus.ACTIVE,
+                category: MerchantCategory.STANDARD,
+                rank: MerchantRank.STARTER,
+                commissionRate: COMMISSION_RATES[MerchantCategory.STANDARD],
+                referralLink: `https://wisekings.ng/?ref=${merchantCode}`,
+            });
 
-            if (merchant) {
-                // If merchant exists but with different userId (or no userId), link it
-                await this.merchantModel.findByIdAndUpdate(merchant._id, {
-                    userId: new Types.ObjectId(userId)
-                });
-                merchant = await this.merchantModel.findById(merchant._id).lean();
-            } else {
-                const merchantCode = await this.generateMerchantCode(user.fullName || 'Merchant');
-
-                const newMerchant = await this.merchantModel.create({
-                    userId: new Types.ObjectId(userId),
-                    merchantCode,
-                    fullName: user.fullName || 'Merchant',
-                    phone: (user as any).phone || '',
-                    email: user.email.toLowerCase(),
-                    category: MerchantCategory.STANDARD,
-                    commissionRate: COMMISSION_RATES[MerchantCategory.STANDARD],
-                    status: MerchantStatus.ACTIVE,
-                    referralLink: `https://wisekings.ng/?ref=${merchantCode}`,
-                });
-                merchant = newMerchant.toObject() as any;
-            }
-
-            // Create wallet for merchant if it doesn't exist
-            await this.walletModel.create({
-                ownerId: (merchant as any)._id,
-                ownerType: 'merchant',
-            }).catch(() => { /* wallet may already exist */ });
+            // Create wallet for merchant
+            await this.walletModel.create({ ownerId: merchant._id, ownerType: 'merchant' }).catch(() => {});
         }
 
-        return { data: merchant };
+        return merchant;
     }
 
     async updateByUserId(userId: string, dto: UpdateMerchantDto) {
@@ -289,8 +290,7 @@ export class MerchantsService {
     }
 
     async getDashboard(userId: string) {
-        const result = await this.findOrCreateByUserId(userId);
-        const merchant = result.data!;
+        const merchant = await this.findOrCreateByUserId(userId);
         const wallet = await this.walletModel
             .findOne({ ownerId: (merchant as any)._id, ownerType: 'merchant' })
             .lean();
@@ -465,41 +465,120 @@ export class MerchantsService {
         return { total, active, suspended, pending, categoryStats, rankStats };
     }
 
-    async submitKyc(userId: string, kycData: { idType: string; idNumber: string; idDocumentUrl: string }) {
-        const merchant = await this.merchantModel.findOne({ userId: new Types.ObjectId(userId) });
-        if (!merchant) throw new NotFoundException('Merchant profile not found');
+    // --- Multi-Document KYC ---
 
-        merchant.kyc = {
-            ...kycData,
-            status: 'pending',
-            submittedAt: new Date(),
-        };
+    async initializeKycDocuments(merchant: MerchantDocument): Promise<MerchantDocument> {
+        if (!merchant.kyc || !merchant.kyc.documents || merchant.kyc.documents.length === 0) {
+            const user = await this.userModel.findById(merchant.userId).lean();
+            const userCountry = user?.country || '';
 
-        await merchant.save();
-        return { message: 'KYC documents submitted successfully', data: merchant.kyc };
+            const settings = await this.systemSettingsService.getSettings();
+            const docTypes = settings.kycDocumentTypes || [];
+            
+            // Filter by target and country
+            const filteredDocs = docTypes.filter(dt => {
+                const targetMatch = dt.target === 'merchant' || dt.target === 'both';
+                const countryMatch = dt.countries.length === 0 || dt.countries.includes(userCountry);
+                return targetMatch && countryMatch;
+            });
+
+            merchant.kyc = {
+                documents: filteredDocs.map(dt => ({
+                    documentType: dt.value,
+                    documentLabel: dt.label,
+                    isRequired: dt.isRequired,
+                    requiresIdNumber: (dt as any).requiresIdNumber !== undefined ? (dt as any).requiresIdNumber : true,
+                    requiresFileUpload: (dt as any).requiresFileUpload !== undefined ? (dt as any).requiresFileUpload : true,
+                    idNumber: '',
+                    documentUrl: '',
+                    status: 'not_submitted' as const,
+                })),
+                status: 'not_submitted',
+            };
+            await merchant.save();
+        }
+        return merchant;
     }
 
-    async updateKycStatus(id: string, status: 'approved' | 'rejected', reason?: string) {
-        const merchant = await this.merchantModel.findById(id).populate('userId');
-        if (!merchant) throw new NotFoundException('Merchant not found');
+    getOverallKycStatus(merchant: any): string {
+        const docs = merchant?.kyc?.documents || [];
+        if (docs.length === 0) return 'not_submitted';
+        
+        // Filter compulsory documents
+        const compulsoryDocs = docs.filter((d: any) => d.isRequired === true);
+        
+        // If all compulsory docs are approved, then overall is approved
+        if (compulsoryDocs.every((d: any) => d.status === 'approved')) return 'approved';
+        
+        // If any document is rejected, show rejected
+        if (docs.some((d: any) => d.status === 'rejected')) return 'rejected';
+        
+        // If any compulsory doc is pending or not submitted
+        if (compulsoryDocs.some((d: any) => d.status === 'pending')) return 'pending';
+        
+        return 'not_submitted';
+    }
 
-        merchant.kyc.status = status;
-        merchant.kyc.verifiedAt = new Date();
-        if (reason) merchant.kyc.rejectionReason = reason;
+    async submitKycDocument(userId: string, docData: { documentType: string; idNumber: string; documentUrl: string }) {
+        const merchant = await this.merchantModel.findOne({ userId: new Types.ObjectId(userId) }).populate('userId');
+        if (!merchant) throw new NotFoundException('Merchant profile not found');
 
+        await this.initializeKycDocuments(merchant);
+
+        const docIndex = merchant.kyc.documents.findIndex(d => d.documentType === docData.documentType);
+        if (docIndex === -1) throw new BadRequestException(`Document type '${docData.documentType}' not found in KYC requirements`);
+
+        merchant.kyc.documents[docIndex].idNumber = docData.idNumber;
+        merchant.kyc.documents[docIndex].documentUrl = docData.documentUrl;
+        merchant.kyc.documents[docIndex].status = 'pending';
+        merchant.kyc.documents[docIndex].submittedAt = new Date();
+        merchant.kyc.documents[docIndex].rejectionReason = undefined;
+
+        merchant.kyc.status = this.getOverallKycStatus(merchant) as any;
+        merchant.markModified('kyc');
         await merchant.save();
 
         const user = merchant.userId as any;
-        await this.userModel.findByIdAndUpdate(user._id, { applicationStatus: status });
+        if (user && user.email) {
+            try {
+                await this.mailService.sendKycSubmittedEmail(user.email, user.fullName || 'Merchant');
+            } catch (err) {
+                this.logger.error(`Failed to send KYC submission email: ${err.message}`);
+            }
+        }
 
-        // Send email notification
+        return { message: 'Document submitted successfully', data: merchant.kyc };
+    }
+
+    async updateKycDocumentStatus(id: string, documentType: string, status: 'approved' | 'rejected', reason?: string) {
+        const merchant = await this.merchantModel.findById(id).populate('userId');
+        if (!merchant) throw new NotFoundException('Merchant not found');
+
+        const docIndex = merchant.kyc.documents.findIndex(d => d.documentType === documentType);
+        if (docIndex === -1) throw new BadRequestException(`Document type '${documentType}' not found`);
+
+        merchant.kyc.documents[docIndex].status = status;
+        merchant.kyc.documents[docIndex].verifiedAt = new Date();
+        if (reason) merchant.kyc.documents[docIndex].rejectionReason = reason;
+
+        merchant.kyc.status = this.getOverallKycStatus(merchant) as any;
+        merchant.markModified('kyc');
+        await merchant.save();
+
+        const overallStatus = this.getOverallKycStatus(merchant);
+        const user = merchant.userId as any;
+        if (overallStatus === 'approved') {
+            await this.userModel.findByIdAndUpdate(user._id, { applicationStatus: 'approved' });
+        }
+
         try {
-            await this.mailService.sendKycStatusUpdate(user.email, user.fullName, status, reason);
+            const docLabel = merchant.kyc.documents[docIndex].documentLabel;
+            await this.mailService.sendKycStatusUpdate(user.email, user.fullName, status, reason ? `${docLabel}: ${reason}` : docLabel);
         } catch (err) {
             this.logger.error(`Failed to send KYC email: ${err.message}`);
         }
 
-        return { message: `KYC ${status} successfully`, data: merchant.kyc };
+        return { message: `Document ${status} successfully`, data: merchant.kyc };
     }
 
     async getReferralQrCode(userId: string): Promise<string> {

@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
+import { IsOptional, IsString } from 'class-validator';
 import { UserType } from '../../../common/constants';
 
 export type UserDocument = User & Document;
@@ -78,6 +79,11 @@ export class User {
 
     @Prop({ type: [Types.ObjectId], ref: 'Product', default: [] })
     recommendedProducts: Types.ObjectId[];
+
+    @IsOptional()
+    @IsString()
+    @Prop({ trim: true })
+    country: string;
 
     @Prop({ default: 0 })
     leadScore: number;

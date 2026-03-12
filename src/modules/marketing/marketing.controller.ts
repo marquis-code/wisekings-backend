@@ -90,4 +90,18 @@ export class MarketingController {
     async getCampaigns() {
         return this.marketingService.getCampaigns();
     }
+
+    @Get('campaigns/:id')
+    @Roles('superadmin', 'admin')
+    @UseGuards(RolesGuard)
+    async getCampaignById(@Param('id') id: string) {
+        return this.marketingService.getCampaignById(id);
+    }
+
+    @Delete('campaigns/:id')
+    @Roles('superadmin', 'admin')
+    @UseGuards(RolesGuard)
+    async deleteCampaign(@Param('id') id: string) {
+        return this.marketingService.deleteCampaign(id);
+    }
 }

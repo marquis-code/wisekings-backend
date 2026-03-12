@@ -39,6 +39,15 @@ export class Order {
     @Prop({ default: 0 })
     discount: number;
 
+    @Prop({ type: String, enum: ['pickup', 'delivery'], default: 'delivery' })
+    deliveryMethod: string;
+
+    @Prop({ type: Object })
+    deliveryLocation: {
+        lat: number;
+        lng: number;
+    };
+
     @Prop({ type: String, enum: OrderStatus, default: OrderStatus.PENDING })
     status: OrderStatus;
 

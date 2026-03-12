@@ -15,6 +15,7 @@ import { PaginationDto, PaginatedResult } from '@common/dto';
 import { EncryptionUtil } from '@common/utils';
 
 import { MailService } from '../mail/mail.service';
+import { SystemSettingsService } from '../system-settings/system-settings.service';
 import * as QRCode from 'qrcode';
 
 @Injectable()
@@ -26,15 +27,17 @@ export class PartnersService {
         @InjectModel(User.name) private userModel: Model<UserDocument>,
         @InjectModel('Wallet') private walletModel: Model<any>,
         private readonly mailService: MailService,
+        private readonly systemSettingsService: SystemSettingsService,
     ) { }
 
     async register(dto: any) {
-        const existing = await this.partnerModel.findOne({ email: dto.email.toLowerCase() });
+        const email = dto.email.toLowerCase().trim();
+        const existing = await this.partnerModel.findOne({ email });
         if (existing) throw new ConflictException('Partner email already registered');
 
         const hashedPassword = await bcrypt.hash(dto.password, 12);
         const user = await this.userModel.create({
-            email: dto.email.toLowerCase(),
+            email,
             password: hashedPassword,
             fullName: dto.contactPerson,
             phone: dto.phone,
@@ -57,7 +60,7 @@ export class PartnersService {
             companyName: dto.companyName,
             contactPerson: dto.contactPerson,
             phone: dto.phone,
-            email: dto.email.toLowerCase(),
+            email,
             bankAccountDetails: bankDetails,
             category: dto.category || 'standard',
             commissionRate: dto.commissionRate || 3,
@@ -87,7 +90,21 @@ export class PartnersService {
                 { partnerCode: { $regex: search, $options: 'i' } },
             ];
         }
-        if (filters?.status) filter.status = filters.status;
+        if (filters?.status) {
+            if (filters.status === 'pending') {
+                filter.$or = filter.$or || [];
+                filter.$or.push({ status: 'pending' }, { 'kyc.status': 'pending' });
+            } else {
+                filter.status = filters.status;
+            }
+        }
+        if (filters?.kycStatus) {
+            if (filters.kycStatus === 'submitted') {
+                filter['kyc.status'] = { $ne: 'not_submitted' };
+            } else {
+                filter['kyc.status'] = filters.kycStatus;
+            }
+        }
 
         const [data, total] = await Promise.all([
             this.partnerModel.find(filter)
@@ -110,16 +127,22 @@ export class PartnersService {
         return partner;
     }
 
-    async findByUserId(userId: string): Promise<Partner> {
-        let partner = await this.partnerModel.findOne({ userId: new Types.ObjectId(userId) }).lean();
+    async findByUserId(userId: string): Promise<PartnerDocument> {
+        let partner = await this.partnerModel.findOne({ userId: new Types.ObjectId(userId) });
 
         if (!partner) {
-            // Auto-create partner profile if user is a partner but has no profile
             const user = await this.userModel.findById(userId);
-            if (user && user.userType === UserType.PARTNER) {
-                this.logger.log(`Auto-creating partner profile for user ${userId}`);
-                const partnerCode = await this.generatePartnerCode(user.fullName || 'WK');
-                const newPartner = await this.partnerModel.create({
+            if (!user) throw new NotFoundException('User not found');
+            
+            if (user.userType !== UserType.PARTNER) {
+                throw new BadRequestException('User is not a partner');
+            }
+
+            // double check
+            partner = await this.partnerModel.findOne({ userId: new Types.ObjectId(userId) });
+            if (!partner) {
+                const partnerCode = `WKP-${user.fullName?.substring(0, 3).toUpperCase() || 'WK'}-${Math.floor(1000 + Math.random() * 9000)}`;
+                partner = await this.partnerModel.create({
                     userId: user._id,
                     partnerCode,
                     companyName: user.fullName || 'My Company',
@@ -130,13 +153,10 @@ export class PartnersService {
                     referralLink: `https://wisekings.ng/?ref=${partnerCode}`,
                 });
 
-                await this.walletModel.create({ ownerId: newPartner._id, ownerType: 'partner' });
-                partner = newPartner.toObject() as any;
-            } else {
-                throw new NotFoundException('Partner profile not found');
+                await this.walletModel.create({ ownerId: partner._id, ownerType: 'partner' });
             }
         }
-        return partner as unknown as Partner;
+        return partner;
     }
 
     async getDashboard(userId: string) {
@@ -220,46 +240,128 @@ export class PartnersService {
         return { message: 'Partner suspended' };
     }
 
-    async submitKyc(userId: string, kycData: { idType: string; idNumber: string; idDocumentUrl: string }) {
-        const partner = await this.partnerModel.findOne({ userId: new Types.ObjectId(userId) });
-        if (!partner) throw new NotFoundException('Partner profile not found');
+    // --- Multi-Document KYC ---
 
-        partner.kyc = {
-            ...kycData,
-            status: 'pending',
-            submittedAt: new Date(),
-        };
+    async initializeKycDocuments(partner: PartnerDocument): Promise<PartnerDocument> {
+        if (!partner.kyc || !partner.kyc.documents || partner.kyc.documents.length === 0) {
+            const user = await this.userModel.findById(partner.userId).lean();
+            const userCountry = user?.country || '';
 
-        await partner.save();
-        return { message: 'KYC documents submitted successfully', data: (partner as any).kyc };
+            const settings = await this.systemSettingsService.getSettings();
+            const docTypes = settings.kycDocumentTypes || [];
+            
+            // Filter by target and country
+            const filteredDocs = docTypes.filter(dt => {
+                const targetMatch = dt.target === 'partner' || dt.target === 'both';
+                const countryMatch = dt.countries.length === 0 || dt.countries.includes(userCountry);
+                return targetMatch && countryMatch;
+            });
+
+            partner.kyc = {
+                documents: filteredDocs.map(dt => ({
+                    documentType: dt.value,
+                    documentLabel: dt.label,
+                    isRequired: dt.isRequired,
+                    requiresIdNumber: (dt as any).requiresIdNumber !== undefined ? (dt as any).requiresIdNumber : true,
+                    requiresFileUpload: (dt as any).requiresFileUpload !== undefined ? (dt as any).requiresFileUpload : true,
+                    idNumber: '',
+                    documentUrl: '',
+                    status: 'not_submitted' as const,
+                })),
+                status: 'not_submitted',
+            };
+            await partner.save();
+        }
+        return partner;
     }
 
-    async updateKycStatus(id: string, status: 'approved' | 'rejected', reason?: string) {
+    getOverallKycStatus(partner: any): string {
+        const docs = partner?.kyc?.documents || [];
+        if (docs.length === 0) return 'not_submitted';
+        
+        // Filter compulsory documents
+        const compulsoryDocs = docs.filter((d: any) => d.isRequired === true);
+        
+        // If all compulsory docs are approved, then overall is approved
+        // (Even if optional docs are pending or not submitted)
+        if (compulsoryDocs.every((d: any) => d.status === 'approved')) return 'approved';
+        
+        // If any document (even optional) is rejected, we might show rejected status
+        // Decisions: if any doc is rejected, let's say rejected.
+        if (docs.some((d: any) => d.status === 'rejected')) return 'rejected';
+        
+        // If any compulsory doc is pending or not submitted, it's pending/not_submitted
+        if (compulsoryDocs.some((d: any) => d.status === 'pending')) return 'pending';
+        
+        return 'not_submitted';
+    }
+
+    async submitKycDocument(userId: string, docData: { documentType: string; idNumber: string; documentUrl: string }) {
+        const partner = await this.findByUserId(userId);
+        const partnerDoc = await this.partnerModel.findById((partner as any)._id).populate('userId');
+        if (!partnerDoc) throw new NotFoundException('Partner profile record missing');
+
+        await this.initializeKycDocuments(partnerDoc);
+
+        const docIndex = partnerDoc.kyc.documents.findIndex(d => d.documentType === docData.documentType);
+        if (docIndex === -1) throw new BadRequestException(`Document type '${docData.documentType}' not found in KYC requirements`);
+
+        partnerDoc.kyc.documents[docIndex].idNumber = docData.idNumber;
+        partnerDoc.kyc.documents[docIndex].documentUrl = docData.documentUrl;
+        partnerDoc.kyc.documents[docIndex].status = 'pending';
+        partnerDoc.kyc.documents[docIndex].submittedAt = new Date();
+        partnerDoc.kyc.documents[docIndex].rejectionReason = undefined;
+
+        partnerDoc.kyc.status = this.getOverallKycStatus(partnerDoc) as any;
+        partnerDoc.markModified('kyc');
+        await partnerDoc.save();
+
+        const user = partnerDoc.userId as any;
+        if (user && user.email) {
+            try {
+                await this.mailService.sendKycSubmittedEmail(user.email, user.fullName || 'Partner');
+            } catch (err) {
+                this.logger.error(`Failed to send KYC submission email: ${err.message}`);
+            }
+        }
+
+        return { message: 'Document submitted successfully', data: partnerDoc.kyc };
+    }
+
+    async updateKycDocumentStatus(id: string, documentType: string, status: 'approved' | 'rejected', reason?: string) {
         const partner = await this.partnerModel.findById(id).populate('userId');
         if (!partner) throw new NotFoundException('Partner not found');
 
-        partner.kyc.status = status;
-        partner.kyc.verifiedAt = new Date();
-        if (reason) partner.kyc.rejectionReason = reason;
+        const docIndex = partner.kyc.documents.findIndex(d => d.documentType === documentType);
+        if (docIndex === -1) throw new BadRequestException(`Document type '${documentType}' not found`);
 
+        partner.kyc.documents[docIndex].status = status;
+        partner.kyc.documents[docIndex].verifiedAt = new Date();
+        if (reason) partner.kyc.documents[docIndex].rejectionReason = reason;
+
+        partner.kyc.status = this.getOverallKycStatus(partner) as any;
+        partner.markModified('kyc');
         await partner.save();
 
+        // If all documents approved, update user applicationStatus
+        const overallStatus = this.getOverallKycStatus(partner);
         const user = partner.userId as any;
-        await this.userModel.findByIdAndUpdate(user._id, { applicationStatus: status });
+        if (overallStatus === 'approved') {
+            await this.userModel.findByIdAndUpdate(user._id, { applicationStatus: 'approved' });
+        }
 
-        // Send email notification
         try {
-            await this.mailService.sendKycStatusUpdate(user.email, user.fullName, status, reason);
+            const docLabel = partner.kyc.documents[docIndex].documentLabel;
+            await this.mailService.sendKycStatusUpdate(user.email, user.fullName, status, reason ? `${docLabel}: ${reason}` : docLabel);
         } catch (err) {
             this.logger.error(`Failed to send KYC email for partner: ${err.message}`);
         }
 
-        return { message: `KYC ${status} successfully`, data: (partner as any).kyc };
+        return { message: `Document ${status} successfully`, data: partner.kyc };
     }
 
     async getReferralQrCode(userId: string): Promise<string> {
-        const partner = await this.partnerModel.findOne({ userId: new Types.ObjectId(userId) }).lean();
-        if (!partner) throw new NotFoundException('Partner profile not found');
+        const partner = await this.findByUserId(userId);
 
         const link = partner.referralLink || `https://wisekings.ng/?ref=${partner.partnerCode}`;
         try {

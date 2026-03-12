@@ -15,8 +15,12 @@ export class PartnersController {
     @Get()
     @Roles('superadmin', 'admin', 'finance', 'support', 'viewer')
     @UseGuards(RolesGuard)
-    async findAll(@Query() paginationDto: PaginationDto, @Query('status') status?: string) {
-        return this.partnersService.findAll(paginationDto, { status });
+    async findAll(
+        @Query() paginationDto: PaginationDto, 
+        @Query('status') status?: string,
+        @Query('kycStatus') kycStatus?: string
+    ) {
+        return this.partnersService.findAll(paginationDto, { status, kycStatus });
     }
 
     @Get('me')
@@ -74,24 +78,34 @@ export class PartnersController {
         return this.partnersService.suspend(id, reason);
     }
 
-    @Post('me/kyc')
+    @Get('me/kyc')
     @UseGuards(RolesGuard)
     @Roles('partner')
-    async submitMyKyc(
-        @CurrentUser('_id') userId: string,
-        @Body() kycData: { idType: string; idNumber: string; idDocumentUrl: string },
-    ) {
-        return this.partnersService.submitKyc(userId, kycData);
+    async getMyKyc(@CurrentUser('_id') userId: string) {
+        const partner = await this.partnersService.findByUserId(userId);
+        const partnerDoc = await this.partnersService.initializeKycDocuments(partner as any);
+        return { data: partnerDoc.kyc, overallStatus: this.partnersService.getOverallKycStatus(partnerDoc) };
     }
 
-    @Patch(':id/kyc-status')
+    @Post('me/kyc/document')
+    @UseGuards(RolesGuard)
+    @Roles('partner')
+    async submitKycDocument(
+        @CurrentUser('_id') userId: string,
+        @Body() docData: { documentType: string; idNumber: string; documentUrl: string },
+    ) {
+        return this.partnersService.submitKycDocument(userId, docData);
+    }
+
+    @Patch(':id/kyc-document-status')
     @Roles('superadmin', 'admin')
     @UseGuards(RolesGuard)
-    async updateKycStatus(
+    async updateKycDocumentStatus(
         @Param('id') id: string,
+        @Body('documentType') documentType: string,
         @Body('status') status: 'approved' | 'rejected',
         @Body('reason') reason?: string,
     ) {
-        return this.partnersService.updateKycStatus(id, status, reason);
+        return this.partnersService.updateKycDocumentStatus(id, documentType, status, reason);
     }
 }

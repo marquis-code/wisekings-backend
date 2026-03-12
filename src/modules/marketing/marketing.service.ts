@@ -79,13 +79,20 @@ export class MarketingService {
     }
 
     // === CAMPAIGNS ===
-    async sendCampaign(userId: string, data: { title: string; subject: string; content: string; targetAudience: 'merchants' | 'partners' | 'customers' | 'all' }) {
-        const filter: any = { isActive: true };
-        if (data.targetAudience === 'merchants') filter.userType = UserType.MERCHANT;
-        else if (data.targetAudience === 'partners') filter.userType = UserType.PARTNER;
-        else if (data.targetAudience === 'customers') filter.userType = UserType.CUSTOMER;
+    async sendCampaign(userId: string, data: { title: string; subject: string; content: string; bannerUrl?: string; previewText?: string; targetAudience: 'merchants' | 'partners' | 'customers' | 'all' | 'custom'; customEmails?: string[] }) {
+        let users: { email: string; fullName?: string }[] = [];
 
-        const users = await this.userModel.find(filter).select('email fullName').lean();
+        if (data.targetAudience === 'custom' && data.customEmails) {
+            users = data.customEmails.map(email => ({ email: email.trim() }));
+        } else {
+            const filter: any = { isActive: true };
+            if (data.targetAudience === 'merchants') filter.userType = UserType.MERCHANT;
+            else if (data.targetAudience === 'partners') filter.userType = UserType.PARTNER;
+            else if (data.targetAudience === 'customers') filter.userType = UserType.CUSTOMER;
+
+            users = await this.userModel.find(filter).select('email fullName').lean();
+        }
+
         const campaign = await this.campaignModel.create({
             ...data,
             createdBy: userId,
@@ -95,8 +102,6 @@ export class MarketingService {
 
         const failedEmails: string[] = [];
 
-        // Sending in batches or concurrently (using Resend which handles some concurrency)
-        // For simplicity, we loop, but in production, a queue/worker is better
         for (const user of users) {
             try {
                 await this.mailService.sendEmail(user.email, data.subject, data.content);
@@ -114,5 +119,17 @@ export class MarketingService {
 
     async getCampaigns() {
         return this.campaignModel.find().sort({ sentAt: -1 }).populate('createdBy', 'fullName').exec();
+    }
+
+    async getCampaignById(id: string) {
+        const campaign = await this.campaignModel.findById(id).populate('createdBy', 'fullName');
+        if (!campaign) throw new NotFoundException('Campaign not found');
+        return campaign;
+    }
+
+    async deleteCampaign(id: string) {
+        const campaign = await this.campaignModel.findByIdAndDelete(id);
+        if (!campaign) throw new NotFoundException('Campaign not found');
+        return { message: 'Campaign deleted' };
     }
 }

@@ -50,9 +50,20 @@ export class UploadsController {
         FileInterceptor('file', {
             limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
             fileFilter: (req, file, callback) => {
-                if (!file.mimetype.match(/\/(pdf|doc|docx|png|jpg|jpeg)$/)) {
+                const allowedMimes = [
+                    'application/pdf',
+                    'application/msword',
+                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                    'image/jpeg',
+                    'image/png',
+                    'image/webp',
+                    'image/gif',
+                    'image/bmp',
+                    'image/tiff',
+                ];
+                if (!allowedMimes.includes(file.mimetype)) {
                     return callback(
-                        new BadRequestException('Only documents (PDF/DOC) or images are allowed!'),
+                        new BadRequestException('Only documents (PDF/DOC/DOCX) or images (JPG/PNG/WEBP/GIF) are allowed!'),
                         false,
                     );
                 }

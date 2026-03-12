@@ -85,7 +85,15 @@ export class ProductsService {
     async update(id: string, dto: any) {
         if (dto.category) {
             const category = await this.categoryModel.findById(dto.category);
-            if (!category) throw new NotFoundException('Category not found');
+            if (!category) throw new NotFoundException('Category find failed');
+        }
+
+        // Handle string to Map conversion if necessary (fixes "Iterator value R" 500 error)
+        if (dto.name && typeof dto.name === 'string') {
+            dto.name = { en: dto.name };
+        }
+        if (dto.description && typeof dto.description === 'string') {
+            dto.description = { en: dto.description };
         }
 
         const product = await this.productModel.findByIdAndUpdate(id, dto, {
@@ -118,6 +126,14 @@ export class ProductsService {
     }
 
     async createCategory(dto: any) {
+        // Robust normalization for Map fields (name, description)
+        if (dto.name && typeof dto.name === 'string') {
+            dto.name = { en: dto.name };
+        }
+        if (dto.description && typeof dto.description === 'string') {
+            dto.description = { en: dto.description };
+        }
+
         const existing = await this.categoryModel.findOne({ slug: dto.slug });
         if (existing) throw new BadRequestException('Category slug must be unique');
 
@@ -125,7 +141,20 @@ export class ProductsService {
     }
 
     async updateCategory(id: string, dto: any) {
-        const category = await this.categoryModel.findByIdAndUpdate(id, dto, { new: true });
+        // Normalize Map fields (name, description) to objects if provided as strings
+        if (dto.name && typeof dto.name === 'string') {
+            dto.name = { en: dto.name };
+        }
+        if (dto.description && typeof dto.description === 'string') {
+            dto.description = { en: dto.description };
+        }
+
+        const category = await this.categoryModel.findByIdAndUpdate(
+            id,
+            { $set: dto },
+            { new: true }
+        );
+
         if (!category) throw new NotFoundException('Category not found');
         return category;
     }

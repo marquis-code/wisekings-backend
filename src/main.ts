@@ -18,7 +18,9 @@ async function bootstrap() {
     // Security
     app.use(helmet());
     app.enableCors({
-        origin: (origin, callback) => callback(null, true),
+        origin: function (origin, callback) {
+            callback(null, origin || '*');
+        },
         credentials: true,
         methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
         allowedHeaders: '*',
