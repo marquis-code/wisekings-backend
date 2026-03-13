@@ -76,10 +76,7 @@
     "typescript": "^5.9.3",
     "ts-loader": "^9.5.1",
     "ts-node": "^10.9.2",
-    "tsconfig-paths": "^4.2.0"
-  },
-  "devDependencies": {
-    "@nestjs/testing": "^10.3.0",
+    "tsconfig-paths": "^4.2.0",
     "@types/bcrypt": "^5.0.2",
     "@types/compression": "^1.7.5",
     "@types/cookie-parser": "^1.4.6",
@@ -91,7 +88,10 @@
     "@types/passport-jwt": "^4.0.1",
     "@types/passport-local": "^1.0.38",
     "@types/qrcode": "^1.5.5",
-    "@types/uuid": "^9.0.7",
+    "@types/uuid": "^9.0.7"
+  },
+  "devDependencies": {
+    "@nestjs/testing": "^10.3.0",
     "@typescript-eslint/eslint-plugin": "^6.18.0",
     "@typescript-eslint/parser": "^6.18.0",
     "eslint": "^8.56.0",
