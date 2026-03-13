@@ -3,6 +3,8 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
+import { CacheModule } from '@nestjs/cache-manager';
+import { redisStore } from 'cache-manager-redis-yet';
 import { APP_GUARD, APP_INTERCEPTOR, APP_FILTER } from '@nestjs/core';
 
 import configuration from './config/configuration';
@@ -31,6 +33,7 @@ import { CurrenciesModule } from './modules/currencies/currencies.module';
 import { ShippingModule } from './modules/shipping/shipping.module';
 import { InvestmentsModule } from './modules/investments/investments.module';
 import { SystemSettingsModule } from './modules/system-settings/system-settings.module';
+import { ContactModule } from './modules/contact/contact.module';
 
 import { GlobalExceptionFilter } from './common/filters';
 import { TransformInterceptor, AuditInterceptor } from './common/interceptors';
@@ -42,6 +45,17 @@ import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
         ConfigModule.forRoot({
             isGlobal: true,
             load: [configuration],
+        }),
+        CacheModule.registerAsync({
+            isGlobal: true,
+            imports: [ConfigModule],
+            useFactory: async (configService: ConfigService) => ({
+                store: await redisStore({
+                    url: configService.get('redis.url'),
+                    ttl: configService.get('redis.ttl'),
+                }),
+            }),
+            inject: [ConfigService],
         }),
         ScheduleModule.forRoot(),
 
@@ -59,13 +73,13 @@ import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
         // Rate Limiting
         ThrottlerModule.forRootAsync({
             imports: [ConfigModule],
+            inject: [ConfigService],
             useFactory: (configService: ConfigService) => [
                 {
-                    ttl: configService.get<number>('throttle.ttl') || 60,
-                    limit: configService.get<number>('throttle.limit') || 100,
+                    ttl: configService.get<number>('throttle.ttl') ?? 60,
+                    limit: configService.get<number>('throttle.limit') ?? 100,
                 },
             ],
-            inject: [ConfigService],
         }),
 
         // Feature Modules
@@ -91,6 +105,7 @@ import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
         ShippingModule,
         InvestmentsModule,
         SystemSettingsModule,
+        ContactModule,
     ],
     providers: [
         // Global Filter

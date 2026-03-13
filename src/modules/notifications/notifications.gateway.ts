@@ -15,7 +15,8 @@ import { ConfigService } from '@nestjs/config';
 @WebSocketGateway({
     namespace: 'notifications',
     cors: {
-        origin: '*', // Should be configured from env in production
+        origin: true,
+        credentials: true,
     },
 })
 export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisconnect {

@@ -58,7 +58,7 @@ export class OrdersService {
 
     async findAll(paginationDto: PaginationDto, filters?: any) {
         const { page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc', search } = paginationDto;
-        const skip = (page - 1) * limit;
+        const skip = ((page as any) - 1) * (limit as any);
         const filter: any = {};
         if (search) filter.orderNumber = { $regex: search, $options: 'i' };
         if (filters?.status) filter.status = filters.status;
@@ -71,7 +71,7 @@ export class OrdersService {
                 .populate('customerId', 'email fullName')
                 .populate('merchantId', 'merchantCode fullName')
                 .sort({ [sortBy as string]: sortOrder === 'asc' ? 1 : -1 })
-                .skip(skip).limit(limit).lean(),
+                .skip(skip).limit(limit as any).lean(),
             this.orderModel.countDocuments(filter),
         ]);
         return new PaginatedResult(data as any[], total, page, limit);

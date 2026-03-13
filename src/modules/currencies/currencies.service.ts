@@ -1,8 +1,14 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 
 @Injectable()
 export class CurrenciesService {
     private readonly logger = new Logger(CurrenciesService.name);
+
+    constructor(
+        @Inject(CACHE_MANAGER) private cacheManager: Cache,
+    ) {}
 
     // Hardcoded rates for now. In production, fetch from an external API.
     private readonly rates: Record<string, number> = {
@@ -20,6 +26,11 @@ export class CurrenciesService {
     };
 
     async getRates() {
+        const cacheKey = 'currency:rates';
+        const cached = await this.cacheManager.get(cacheKey);
+        if (cached) return cached;
+
+        await this.cacheManager.set(cacheKey, this.rates, 86400);
         return this.rates;
     }
 
@@ -36,10 +47,17 @@ export class CurrenciesService {
     }
 
     async getCurrencies() {
-        return Object.keys(this.rates).map(code => ({
+        const cacheKey = 'currency:list';
+        const cached = await this.cacheManager.get(cacheKey);
+        if (cached) return cached;
+
+        const result = Object.keys(this.rates).map(code => ({
             code,
             symbol: this.currencySymbols[code] || code,
             rate: this.rates[code],
         }));
+
+        await this.cacheManager.set(cacheKey, result, 86400);
+        return result;
     }
 }

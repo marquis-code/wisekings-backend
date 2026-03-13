@@ -21,20 +21,20 @@ export class ChatController {
 
     @Get('conversations')
     async getConversations(
-        @CurrentUser('_id') userId: string,
+        @CurrentUser() user: any,
         @Query() paginationDto: PaginationDto,
     ) {
-        return this.chatService.findUserConversations(userId, paginationDto);
+        return this.chatService.findUserConversations(user, paginationDto);
     }
 
     @Post('conversations')
     async createConversation(
         @CurrentUser('_id') userId: string,
-        @Body() body: { participants: string[]; type?: 'direct' | 'group' | 'support' },
+        @Body() body: { participants: string[]; type?: 'direct' | 'group' | 'support'; referrer?: string },
     ) {
         if (body.type === 'support') {
-            // Find an admin to chat with
-            return this.chatService.createSupportConversation(userId);
+            // Find an admin to chat with (and potentially a merchant if referred)
+            return this.chatService.createSupportConversation(userId, body.referrer);
         }
         const participants = [...new Set([...body.participants, userId])];
         return this.chatService.createConversation(participants, body.type);

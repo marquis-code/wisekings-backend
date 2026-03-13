@@ -1,7 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 import { IsOptional, IsString } from 'class-validator';
-import { UserType } from '../../../common/constants';
+import { UserType } from '@common/constants';
 
 export type UserDocument = User & Document;
 

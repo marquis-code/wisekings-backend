@@ -27,6 +27,13 @@ export const validationSchema = Joi.object({
     CUSTOMER_URL: Joi.string().default('http://localhost:3004'),
     THROTTLE_TTL: Joi.number().default(60),
     THROTTLE_LIMIT: Joi.number().default(100),
+    REDIS_HOST: Joi.string().required(),
+    REDIS_PORT: Joi.number().required(),
+    REDIS_USERNAME: Joi.string().optional(),
+    REDIS_PASSWORD: Joi.string().optional(),
+    REDIS_URL: Joi.string().required(),
+    REDIS_TTL: Joi.number().default(3600),
+    REDIS_MAX_ITEM: Joi.number().default(1000),
 });
 
 export const appConfig = registerAs('app', () => ({
@@ -81,7 +88,17 @@ export const throttleConfig = registerAs('throttle', () => ({
     limit: parseInt(process.env.THROTTLE_LIMIT as string, 10) || 100,
 }));
 
-export default () => ({
+export const redisConfig = registerAs('redis', () => ({
+    host: process.env.REDIS_HOST,
+    port: parseInt(process.env.REDIS_PORT as string, 10),
+    username: process.env.REDIS_USERNAME,
+    password: process.env.REDIS_PASSWORD,
+    url: process.env.REDIS_URL,
+    ttl: parseInt(process.env.REDIS_TTL as string, 10) || 3600,
+    max: parseInt(process.env.REDIS_MAX_ITEM as string, 10) || 1000,
+}));
+
+const configuration = () => ({
     app: appConfig(),
     database: databaseConfig(),
     jwt: jwtConfig(),
@@ -91,4 +108,7 @@ export default () => ({
     encryption: encryptionConfig(),
     cors: corsConfig(),
     throttle: throttleConfig(),
+    redis: redisConfig(),
 });
+
+export default configuration;

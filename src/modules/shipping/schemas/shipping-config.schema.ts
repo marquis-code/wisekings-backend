@@ -31,6 +31,16 @@ export class ShippingConfig {
 
     @Prop({ default: true })
     isActive: boolean;
+
+    @Prop({
+        type: [{
+            from: { type: Number, required: true }, // meters
+            to: { type: Number, required: true },   // meters
+            price: { type: Number, required: true }
+        }],
+        default: []
+    })
+    pricingTiers: { from: number; to: number; price: number }[];
 }
 
 export const ShippingConfigSchema = SchemaFactory.createForClass(ShippingConfig);

@@ -12,7 +12,8 @@ import { ConfigService } from '@nestjs/config';
 
 @WebSocketGateway({
     cors: {
-        origin: '*', // For development. In production, restrict to allowed origins.
+        origin: true,
+        credentials: true,
     },
     namespace: '/notifications',
 })

@@ -20,17 +20,64 @@ export class UsersService {
         private mailService: MailService,
     ) { }
 
-    async findAll(paginationDto: PaginationDto, userType?: string, applicationStatus?: string) {
+    async findAll(paginationDto: PaginationDto, currentUser: any, userType?: string, applicationStatus?: string) {
         const { page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc', search } = paginationDto;
-        const skip = (page - 1) * limit;
+        const skip = (Number(page) - 1) * Number(limit);
 
         const filter: any = {};
+        
+        // Role-based visibility logic
+        if (currentUser.userType === UserType.MERCHANT) {
+            // Merchants can see Admins, other Merchants, and THEIR referred customers
+            const merchant = await this.userModel.db.model('Merchant').findOne({ userId: currentUser._id }).lean() as any;
+            if (merchant) {
+                const referrals = await this.userModel.db.model('Referral').find({ merchantId: merchant._id, status: 'converted' }).lean();
+                const referredCustomerIds = referrals.map(r => r.customerId).filter(id => !!id);
+                
+                filter.$and = filter.$and || [];
+                filter.$and.push({
+                    $or: [
+                        { userType: { $in: [UserType.ADMIN, UserType.MERCHANT] } },
+                        { _id: { $in: referredCustomerIds } }
+                    ]
+                });
+            } else {
+                filter.userType = { $in: [UserType.ADMIN, UserType.MERCHANT] };
+            }
+        } else if (currentUser.userType === UserType.PARTNER) {
+            // Partners can see Admins, other Partners, and THEIR referred people
+            const partner = await this.userModel.db.model('Partner').findOne({ userId: currentUser._id }).lean() as any;
+            if (partner) {
+                // Find users referred by this partner
+                const referrals = await this.userModel.db.model('Referral').find({ partnerId: partner._id, status: 'converted' }).lean();
+                // A partner might refer customers or other partners
+                const referredUserIds = referrals.map(r => r.customerId || r.partnerId).filter(id => !!id);
+                
+                filter.$and = filter.$and || [];
+                filter.$and.push({
+                    $or: [
+                        { userType: { $in: [UserType.ADMIN, UserType.PARTNER] } },
+                        { _id: { $in: referredUserIds } }
+                    ]
+                });
+            } else {
+                filter.userType = { $in: [UserType.ADMIN, UserType.PARTNER] };
+            }
+        }
+
         if (search) {
-            filter.$or = [
-                { fullName: { $regex: search, $options: 'i' } },
-                { email: { $regex: search, $options: 'i' } },
-                { phone: { $regex: search, $options: 'i' } },
-            ];
+            const searchFilter = {
+                $or: [
+                    { fullName: { $regex: search, $options: 'i' } },
+                    { email: { $regex: search, $options: 'i' } },
+                    { phone: { $regex: search, $options: 'i' } },
+                ]
+            };
+            if (filter.$and) {
+                filter.$and.push(searchFilter);
+            } else {
+                Object.assign(filter, searchFilter);
+            }
         }
         if (userType) filter.userType = userType;
         if (applicationStatus) filter.applicationStatus = applicationStatus;
@@ -40,7 +87,7 @@ export class UsersService {
                 .find(filter)
                 .sort({ [sortBy as string]: sortOrder === 'asc' ? 1 : -1 })
                 .skip(skip)
-                .limit(limit)
+                .limit(limit as any)
                 .select('-password -refreshToken')
                 .lean(),
             this.userModel.countDocuments(filter),
@@ -186,7 +233,8 @@ export class UsersService {
             password: tempPassword,
             isInvited: true,
             isEmailVerified: false,
-            isActive: true,
+            isActive: false, // Stays pending until activation
+            applicationStatus: 'pending',
             otpCode,
             otpExpires,
         });

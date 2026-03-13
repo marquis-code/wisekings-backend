@@ -167,6 +167,8 @@ export class MailService {
   }
 
   async sendAdminInvitationEmail(email: string, name: string, otpCode: string) {
+    const adminUrl = this.configService.get('ADMIN_URL') || 'http://localhost:3001';
+    const invitationLink = `${adminUrl}/join?email=${encodeURIComponent(email)}`;
     const subject = 'Invitation to join WiseKings Admin';
     const html = this.brandWrapper(
       'Join the Team',
@@ -177,6 +179,9 @@ export class MailService {
         <span class="otp-code">${otpCode}</span>
       </div>
       <p>This invitation is valid for 24 hours.</p>
+      <div style="text-align: center; margin-top: 32px;">
+        <a href="${invitationLink}" class="btn">Complete Activation</a>
+      </div>
       `
     );
     return this.sendEmail(email, subject, html);

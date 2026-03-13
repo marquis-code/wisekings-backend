@@ -103,7 +103,7 @@ export class CommissionsService {
 
     async findAll(paginationDto: PaginationDto, filters?: any) {
         const { page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc' } = paginationDto;
-        const skip = (page - 1) * limit;
+        const skip = (Number(page) - 1) * Number(limit);
         const filter: any = {};
         if (filters?.merchantId) filter.merchantId = new Types.ObjectId(filters.merchantId);
         if (filters?.partnerId) filter.partnerId = new Types.ObjectId(filters.partnerId);
@@ -123,7 +123,7 @@ export class CommissionsService {
 
     async findByUser(userId: string, paginationDto: PaginationDto) {
         const { page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc' } = paginationDto;
-        const skip = (page - 1) * limit;
+        const skip = (Number(page) - 1) * Number(limit);
 
         // Find merchant or partner by userId
         const merchant = await this.merchantModel.findOne({ userId: new Types.ObjectId(userId) }).lean();

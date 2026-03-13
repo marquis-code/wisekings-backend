@@ -3,7 +3,7 @@ import { OrdersService } from './orders.service';
 import { Roles, CurrentUser } from '../../common/decorators';
 import { RolesGuard } from '../../common/guards';
 import { PaginationDto } from '../../common/dto';
-import { OrderStatus, PaymentStatus } from '../../common/constants';
+import { OrderStatus, PaymentStatus } from '@common/constants';
 
 @Controller('orders')
 export class OrdersController {

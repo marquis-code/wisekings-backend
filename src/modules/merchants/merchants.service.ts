@@ -4,7 +4,10 @@ import {
     NotFoundException,
     BadRequestException,
     Logger,
+    Inject,
 } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import * as bcrypt from 'bcrypt';
@@ -21,9 +24,9 @@ import {
     COMMISSION_RATES,
     CATEGORY_UPGRADE_THRESHOLDS,
     RANK_THRESHOLDS,
-} from '../../common/constants';
-import { PaginationDto, PaginatedResult } from '../../common/dto';
-import { EncryptionUtil } from '../../common/utils';
+} from '@common/constants';
+import { PaginationDto, PaginatedResult } from '@common/dto';
+import { EncryptionUtil } from '@common/utils';
 
 import { MailService } from '../mail/mail.service';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
@@ -38,6 +41,7 @@ export class MerchantsService {
         @InjectModel(User.name) private userModel: Model<UserDocument>,
         @InjectModel('Wallet') private walletModel: Model<WalletDocument>,
         @InjectModel(Order.name) private orderModel: Model<OrderDocument>,
+        @Inject(CACHE_MANAGER) private cacheManager: Cache,
         private readonly mailService: MailService,
         private readonly systemSettingsService: SystemSettingsService,
     ) { }
@@ -129,7 +133,7 @@ export class MerchantsService {
 
     async findAll(paginationDto: PaginationDto, filters?: any) {
         const { page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc', search } = paginationDto;
-        const skip = (page - 1) * limit;
+        const skip = (Number(page) - 1) * Number(limit);
 
         const filter: any = {};
         if (search) {
@@ -163,7 +167,7 @@ export class MerchantsService {
                 .populate('userId', 'email fullName avatar')
                 .sort({ [sortBy as string]: sortOrder === 'asc' ? 1 : -1 })
                 .skip(skip)
-                .limit(limit)
+                .limit(limit as number)
                 .lean(),
             this.merchantModel.countDocuments(filter),
         ]);
@@ -172,6 +176,10 @@ export class MerchantsService {
     }
 
     async findById(id: string) {
+        const cacheKey = `merchant:id:${id}`;
+        const cached = await this.cacheManager.get(cacheKey);
+        if (cached) return cached;
+
         const merchant = await this.merchantModel
             .findById(id)
             .populate('userId', 'email fullName avatar lastLogin')
@@ -188,6 +196,7 @@ export class MerchantsService {
             );
         }
 
+        await this.cacheManager.set(cacheKey, merchant, 3600); // 1 hour cache
         return merchant;
     }
 
@@ -228,7 +237,7 @@ export class MerchantsService {
             merchant = await this.merchantModel.create({
                 userId: user._id,
                 merchantCode,
-                businessName: user.fullName || 'My Business',
+                fullName: user.fullName || 'Merchant',
                 email: user.email,
                 phone: user.phone || '',
                 status: MerchantStatus.ACTIVE,
@@ -266,6 +275,10 @@ export class MerchantsService {
             .findByIdAndUpdate(merchant._id, updateData, { new: true })
             .lean();
 
+        // Clear cache
+        await this.cacheManager.del(`merchant:id:${merchant._id}`);
+        await this.cacheManager.del(`merchant:dashboard:${userId}`);
+
         return { message: 'Profile updated successfully', data: updated };
     }
 
@@ -279,23 +292,27 @@ export class MerchantsService {
         }
 
         const { page = 1, limit = 10 } = paginationDto;
-        const skip = (page - 1) * limit;
+        const skip = ((page as any) - 1) * (limit as any);
 
         const filter = { merchantId: (merchant as any)._id };
         const [data, total] = await Promise.all([
-            this.orderModel.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+            this.orderModel.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit as any).lean(),
             this.orderModel.countDocuments(filter),
         ]);
         return new PaginatedResult(data as any[], total, page, limit);
     }
 
     async getDashboard(userId: string) {
+        const cacheKey = `merchant:dashboard:${userId}`;
+        const cached = await this.cacheManager.get(cacheKey);
+        if (cached) return cached;
+
         const merchant = await this.findOrCreateByUserId(userId);
         const wallet = await this.walletModel
             .findOne({ ownerId: (merchant as any)._id, ownerType: 'merchant' })
             .lean();
 
-        return {
+        const result = {
             data: {
                 merchant: {
                     merchantCode: merchant.merchantCode,
@@ -320,6 +337,9 @@ export class MerchantsService {
                     : null,
             },
         };
+
+        await this.cacheManager.set(cacheKey, result, 300); // 5 mins cache for dashboard
+        return result;
     }
 
     async update(id: string, dto: UpdateMerchantDto) {
@@ -344,6 +364,12 @@ export class MerchantsService {
             throw new NotFoundException('Merchant not found');
         }
 
+        // Clear cache
+        await this.cacheManager.del(`merchant:id:${id}`);
+        if (merchant.userId) {
+            await this.cacheManager.del(`merchant:dashboard:${merchant.userId}`);
+        }
+
         return { message: 'Merchant updated successfully', data: merchant };
     }
 
@@ -365,6 +391,10 @@ export class MerchantsService {
         // Deactivate user account
         await this.userModel.findByIdAndUpdate(merchant.userId, { isActive: false });
 
+        // Clear cache
+        await this.cacheManager.del(`merchant:id:${id}`);
+        await this.cacheManager.del(`merchant:dashboard:${merchant.userId}`);
+
         return { message: 'Merchant suspended successfully' };
     }
 
@@ -384,6 +414,10 @@ export class MerchantsService {
         }
 
         await this.userModel.findByIdAndUpdate(merchant.userId, { isActive: true });
+
+        // Clear cache
+        await this.cacheManager.del(`merchant:id:${id}`);
+        await this.cacheManager.del(`merchant:dashboard:${merchant.userId}`);
 
         return { message: 'Merchant activated successfully' };
     }
@@ -576,6 +610,13 @@ export class MerchantsService {
             await this.mailService.sendKycStatusUpdate(user.email, user.fullName, status, reason ? `${docLabel}: ${reason}` : docLabel);
         } catch (err) {
             this.logger.error(`Failed to send KYC email: ${err.message}`);
+        }
+
+        // Clear cache
+        await this.cacheManager.del(`merchant:id:${id}`);
+        if (merchant.userId) {
+            const user = merchant.userId as any;
+            await this.cacheManager.del(`merchant:dashboard:${user?._id || user}`);
         }
 
         return { message: `Document ${status} successfully`, data: merchant.kyc };

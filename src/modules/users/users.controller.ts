@@ -23,12 +23,13 @@ export class UsersController {
     constructor(private readonly usersService: UsersService) { }
 
     @Get()
-    @Roles('superadmin', 'admin')
+    @Roles('superadmin', 'admin', 'merchant', 'partner')
     @UseGuards(RolesGuard)
     async findAll(
         @Query() queryDto: UserQueryDto,
+        @CurrentUser() user: any,
     ) {
-        return this.usersService.findAll(queryDto, queryDto.userType, queryDto.applicationStatus);
+        return this.usersService.findAll(queryDto, user, queryDto.userType, queryDto.applicationStatus);
     }
 
     @Get('me')

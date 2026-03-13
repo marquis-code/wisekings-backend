@@ -1,4 +1,6 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, Inject } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { SystemSettings, SystemSettingsDocument } from './schemas/settings.schema';
@@ -9,6 +11,7 @@ export class SystemSettingsService implements OnModuleInit {
 
   constructor(
     @InjectModel(SystemSettings.name) private settingsModel: Model<SystemSettingsDocument>,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
   async onModuleInit() {
@@ -36,6 +39,10 @@ export class SystemSettingsService implements OnModuleInit {
   }
 
   async getSettings(): Promise<SystemSettingsDocument> {
+    const cacheKey = 'system:settings';
+    const cached = await this.cacheManager.get<SystemSettingsDocument>(cacheKey);
+    if (cached) return cached;
+
     let settings = await this.settingsModel.findOne().exec();
     if (!settings) {
       settings = await this.settingsModel.create({
@@ -51,6 +58,8 @@ export class SystemSettingsService implements OnModuleInit {
         ]
       });
     }
+
+    await this.cacheManager.set(cacheKey, settings, 86400); // Cache for 24 hours
     return settings;
   }
 
@@ -63,13 +72,17 @@ export class SystemSettingsService implements OnModuleInit {
       value: doc.value || this.slugify(doc.label)
     }));
 
-    return settings.save();
+    const saved = await settings.save();
+    await this.cacheManager.del('system:settings');
+    return saved;
   }
 
   async updateSettings(dto: Partial<SystemSettings>): Promise<SystemSettings> {
     const settings = await this.getSettings();
     if (dto.whatsappNumber !== undefined) settings.whatsappNumber = dto.whatsappNumber;
-    return settings.save();
+    const saved = await settings.save();
+    await this.cacheManager.del('system:settings');
+    return saved;
   }
 
   private slugify(text: string): string {

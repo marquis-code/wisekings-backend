@@ -31,14 +31,14 @@ export class NotificationsService {
 
     async findAll(userId: string, paginationDto: PaginationDto) {
         const { page = 1, limit = 10 } = paginationDto;
-        const skip = (page - 1) * limit;
+        const skip = ((page as any) - 1) * (limit as any);
 
         const [data, total] = await Promise.all([
             this.notificationModel
                 .find({ userId: new Types.ObjectId(userId) })
                 .sort({ createdAt: -1 })
                 .skip(skip)
-                .limit(limit)
+                .limit(limit as any)
                 .lean(),
             this.notificationModel.countDocuments({ userId: new Types.ObjectId(userId) }),
         ]);

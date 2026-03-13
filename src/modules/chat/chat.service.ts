@@ -3,28 +3,42 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Conversation, ConversationDocument, Message, MessageDocument } from './schemas/chat.schema';
 import { MessageType } from '@common/constants';
+import { AiService } from '../ai/ai.service';
+import { ChatConfigService } from './chat-config.service';
+import { ChatConfig } from './schemas/chat-config.schema';
 
 @Injectable()
 export class ChatService {
     constructor(
         @InjectModel(Conversation.name) private conversationModel: Model<ConversationDocument>,
         @InjectModel(Message.name) private messageModel: Model<MessageDocument>,
+        private aiService: AiService,
+        private configService: ChatConfigService,
     ) { }
 
-    async findUserConversations(userId: string, paginationDto: any) {
+    async findUserConversations(user: any, paginationDto: any) {
         const { limit = 10, skip = 0 } = paginationDto;
-        const conversations = await this.conversationModel.find({
-            participants: new Types.ObjectId(userId),
-        })
+        const userId = user._id || user.sub;
+        
+        const query: any = {
+            $or: [
+                { participants: new Types.ObjectId(userId) }
+            ]
+        };
+
+        // If user is admin/support, also show all support conversations
+        if (user.userType === 'admin' || user.role === 'admin' || user.role === 'support') {
+            query.$or.push({ type: 'support' });
+        }
+
+        const conversations = await this.conversationModel.find(query)
             .sort({ lastMessageAt: -1 })
-            .limit(limit)
+            .limit(limit as any)
             .skip(skip)
-            .populate('participants', 'fullName email avatar')
+            .populate('participants', 'fullName email avatar userType')
             .exec();
 
-        const total = await this.conversationModel.countDocuments({
-            participants: new Types.ObjectId(userId),
-        });
+        const total = await this.conversationModel.countDocuments(query);
 
         return { data: conversations, total, limit, skip };
     }
@@ -35,8 +49,11 @@ export class ChatService {
             const existing = await this.conversationModel.findOne({
                 participants: { $all: participants.map(p => new Types.ObjectId(p)) },
                 type: 'direct'
-            });
-            if (existing) return { data: existing };
+            }).populate('participants', 'fullName email avatar userType');
+            
+            if (existing) {
+                return { data: existing };
+            }
         }
 
         const newConv = await this.conversationModel.create({
@@ -44,7 +61,9 @@ export class ChatService {
             type,
         });
 
-        return { data: newConv };
+        const populated = await newConv.populate('participants', 'fullName email avatar userType');
+
+        return { data: populated };
     }
 
     async getConversationMessages(conversationId: string, paginationDto: any) {
@@ -53,9 +72,9 @@ export class ChatService {
             conversationId: new Types.ObjectId(conversationId),
         })
             .sort({ createdAt: 1 }) // Or -1 if you want most recent first
-            .limit(limit)
+            .limit(limit as any)
             .skip(skip)
-            .populate('senderId', 'fullName email avatar')
+            .populate('senderId', 'fullName email avatar userType')
             .exec();
 
         const total = await this.messageModel.countDocuments({
@@ -65,28 +84,89 @@ export class ChatService {
         return { data: messages, total, limit, skip };
     }
 
-    async saveMessage(conversationId: string, senderId: string, content: string, type: MessageType = MessageType.TEXT, attachments: string[] = []) {
+    async saveMessage(conversationId: string, senderId: string, content: string, type: MessageType = MessageType.TEXT, attachments: string[] = [], replyTo?: string) {
         const message = await this.messageModel.create({
             conversationId: new Types.ObjectId(conversationId),
             senderId: new Types.ObjectId(senderId),
             content,
             type,
             attachments,
+            replyTo: replyTo ? new Types.ObjectId(replyTo) : undefined,
         });
 
-        // Update conversation last message and fetch it to get participants
+        // Update conversation
         const conversation = await this.conversationModel.findByIdAndUpdate(conversationId, {
             lastMessage: content,
             lastMessageAt: new Date(),
             lastMessageBy: new Types.ObjectId(senderId),
-        }, { new: true }).exec();
+        }, { new: true })
+            .populate('participants', 'fullName email avatar userType')
+            .exec();
 
-        const populatedMessage = await message.populate('senderId', 'fullName email avatar');
+        const populatedMessage = await message.populate([
+            { path: 'senderId', select: 'fullName email avatar userType' },
+            { 
+                path: 'replyTo', 
+                populate: { path: 'senderId', select: 'fullName email' } 
+            }
+        ]);
+
+        // Process AI/Auto-response triggers if message is from a non-admin in a support chat
+        this.handleAutoResponse(conversation, senderId, content);
 
         return {
             message: populatedMessage,
             conversation
         };
+    }
+
+    private async handleAutoResponse(conversation: any, senderId: string, content: string) {
+        if (!conversation || conversation.type !== 'support') return;
+
+        // Check if sender is an admin (we only auto-respond to customers/partners/merchants)
+        const participants = conversation.participants as any[];
+        const sender = participants.find(p => p._id.toString() === senderId);
+        if (sender?.userType === 'admin') return;
+
+        const config = await this.configService.getConfig();
+        const isWorkingHours = await this.configService.isWithinBusinessHours();
+
+        // Find system admin for the response
+        const systemAdmin = await this.messageModel.db.model('User').findOne({ userType: 'admin' }).exec();
+        if (!systemAdmin) return;
+
+        // 1. Business Hours Check
+        if (!isWorkingHours && config.offlineMessage) {
+            setTimeout(async () => {
+                await this.saveMessage(conversation._id.toString(), systemAdmin._id.toString(), config.offlineMessage, MessageType.TEXT);
+            }, 2000);
+            return;
+        }
+
+        // 2. Exact/Keyword Triggers
+        const trigger = config.autoResponses.find(ar => ar.isActive && content.toLowerCase().includes(ar.trigger.toLowerCase()));
+        if (trigger) {
+            setTimeout(async () => {
+                await this.saveMessage(conversation._id.toString(), systemAdmin._id.toString(), trigger.response, MessageType.TEXT);
+            }, 1000);
+            return;
+        }
+
+        // 3. AI Response
+        if (config.aiEnabled) {
+            const history = await this.messageModel.find({ conversationId: conversation._id })
+                .sort({ createdAt: -1 })
+                .limit(10)
+                .populate('senderId', 'userType')
+                .exec();
+
+            const aiResponse = await this.aiService.generateSupportResponse(history.reverse(), content, config.aiSystemPrompt);
+            if (aiResponse) {
+                setTimeout(async () => {
+                    await this.saveMessage(conversation._id.toString(), systemAdmin._id.toString(), aiResponse, MessageType.TEXT);
+                }, 3000);
+            }
+        }
     }
 
     async markAsRead(conversationId: string, userId: string) {
@@ -96,16 +176,36 @@ export class ChatService {
         );
     }
 
-    async createSupportConversation(userId: string) {
-        // Find an admin user
+    async createSupportConversation(userId: string, referrerCode?: string) {
+        // Find an admin user that is NOT the current user
         const admin = await this.messageModel.db.model('User').findOne({
             userType: 'admin',
-            isActive: true
+            isActive: true,
+            _id: { $ne: new Types.ObjectId(userId) }
         }).lean() as any;
 
-        const adminId = admin?._id || '65f1a2b3c4d5e6f7a8b9c0d1'; // Fallback to a known ID if no admin found (avoiding crash)
+        const participants = [userId];
+        if (admin) {
+            participants.push(admin._id.toString());
+        }
 
-        return this.createConversation([userId, adminId.toString()], 'direct');
+        // Always use type: 'support' for support chats
+        let type = 'support';
+
+        if (referrerCode) {
+            const merchant = await this.messageModel.db.model('Merchant').findOne({
+                merchantCode: referrerCode
+            }).populate('userId').lean() as any;
+
+            if (merchant && merchant.userId) {
+                const merchantUserId = merchant.userId._id.toString();
+                if (!participants.includes(merchantUserId)) {
+                    participants.push(merchantUserId);
+                }
+            }
+        }
+
+        return this.createConversation(participants, type);
     }
 
     async getOrCreateCommunityGroup(userType: string) {

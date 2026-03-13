@@ -2,7 +2,10 @@ import {
     Injectable,
     NotFoundException,
     BadRequestException,
+    Inject,
 } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Product, ProductDocument } from './schemas/product.schema';
@@ -14,6 +17,7 @@ export class ProductsService {
     constructor(
         @InjectModel(Product.name) private productModel: Model<ProductDocument>,
         @InjectModel(Category.name) private categoryModel: Model<CategoryDocument>,
+        @Inject(CACHE_MANAGER) private cacheManager: Cache,
     ) { }
 
     async create(dto: any) {
@@ -31,12 +35,13 @@ export class ProductsService {
         }
 
         const product = await this.productModel.create(dto);
+        await this.cacheManager.del(`product:categories:*`); // Invalidate categories just in case
         return product;
     }
 
     async findAll(paginationDto: PaginationDto, filters?: any, locale: string = 'en') {
         const { page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc', search } = paginationDto;
-        const skip = (page - 1) * limit;
+        const skip = ((page as any) - 1) * (limit as any);
 
         const filter: any = {};
         if (search) {
@@ -55,7 +60,7 @@ export class ProductsService {
                 .populate('category', 'name slug')
                 .sort({ [sortBy as string]: sortOrder === 'asc' ? 1 : -1 })
                 .skip(skip)
-                .limit(limit)
+                .limit(limit as any)
                 .lean(),
             this.productModel.countDocuments(filter),
         ]);
@@ -65,21 +70,35 @@ export class ProductsService {
     }
 
     async findById(id: string, locale: string = 'en') {
+        const cacheKey = `product:id:${id}:${locale}`;
+        const cached = await this.cacheManager.get(cacheKey);
+        if (cached) return cached;
+
         const product = await this.productModel
             .findById(id)
             .populate('category', 'name slug')
             .lean();
         if (!product) throw new NotFoundException('Product not found');
-        return this.localizeProduct(product, locale);
+        
+        const localized = this.localizeProduct(product, locale);
+        await this.cacheManager.set(cacheKey, localized, 3600);
+        return localized;
     }
 
     async findBySlug(slug: string, locale: string = 'en') {
+        const cacheKey = `product:slug:${slug}:${locale}`;
+        const cached = await this.cacheManager.get(cacheKey);
+        if (cached) return cached;
+
         const product = await this.productModel
             .findOne({ slug, isActive: true })
             .populate('category', 'name slug')
             .lean();
         if (!product) throw new NotFoundException('Product not found');
-        return this.localizeProduct(product, locale);
+        
+        const localized = this.localizeProduct(product, locale);
+        await this.cacheManager.set(cacheKey, localized, 3600);
+        return localized;
     }
 
     async update(id: string, dto: any) {
@@ -100,23 +119,47 @@ export class ProductsService {
             new: true,
         });
         if (!product) throw new NotFoundException('Product not found');
+
+        // Clear cache
+        await this.cacheManager.del(`product:id:${id}:*`);
+        if (product.slug) {
+            await this.cacheManager.del(`product:slug:${product.slug}:*`);
+        }
+        await this.cacheManager.del(`product:recommendations:${id}:*`);
+
         return product;
     }
 
     async delete(id: string) {
+        const product = await this.productModel.findById(id).lean();
         const result = await this.productModel.findByIdAndDelete(id);
         if (!result) throw new NotFoundException('Product not found');
+
+        // Clear cache
+        await this.cacheManager.del(`product:id:${id}:*`);
+        if (product && (product as any).slug) {
+            await this.cacheManager.del(`product:slug:${(product as any).slug}:*`);
+        }
+        await this.cacheManager.del(`product:recommendations:${id}:*`);
+
         return { message: 'Product deleted successfully' };
     }
 
     // Category Methods
     async findAllCategories(locale: string = 'en') {
+        const cacheKey = `product:categories:${locale}`;
+        const cached = await this.cacheManager.get(cacheKey);
+        if (cached) return cached;
+
         const categories = await this.categoryModel
             .find()
             .populate('parentCategory', 'name')
             .sort({ sortOrder: 1, name: 1 })
             .lean();
-        return categories.map(cat => this.localizeCategory(cat, locale));
+        
+        const localized = categories.map(cat => this.localizeCategory(cat, locale));
+        await this.cacheManager.set(cacheKey, localized, 86400); // 24 hours
+        return localized;
     }
 
     async findCategoryById(id: string, locale: string = 'en') {
@@ -172,6 +215,10 @@ export class ProductsService {
     }
 
     async getRecommendations(productId: string, limit = 4, locale = 'en') {
+        const cacheKey = `product:recommendations:${productId}:${locale}`;
+        const cached = await this.cacheManager.get(cacheKey);
+        if (cached) return cached;
+
         const product = await this.productModel.findById(productId);
         if (!product) throw new NotFoundException('Product not found');
 
@@ -182,9 +229,11 @@ export class ProductsService {
                 { tags: { $in: product.tags } },
             ],
             isActive: true,
-        }).limit(limit).lean();
+        }).limit(limit as any).lean();
 
-        return recommendations.map(p => this.localizeProduct(p as any, locale));
+        const localized = recommendations.map(p => this.localizeProduct(p as any, locale));
+        await this.cacheManager.set(cacheKey, localized, 3600);
+        return localized;
     }
 
     async bulkUpdate(ids: string[], update: any) {

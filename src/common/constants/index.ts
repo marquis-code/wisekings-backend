@@ -86,7 +86,12 @@ export enum NotificationType {
 export enum MessageType {
     TEXT = 'text',
     IMAGE = 'image',
+    VIDEO = 'video',
+    AUDIO = 'audio',
+    GIF = 'gif',
+    STICKER = 'sticker',
     FILE = 'file',
+    DOCUMENT = 'document',
 }
 
 export enum PaymentProvider {

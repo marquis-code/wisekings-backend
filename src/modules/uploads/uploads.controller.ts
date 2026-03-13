@@ -18,14 +18,14 @@ export class UploadsController {
     constructor(private readonly uploadsService: UploadsService) { }
 
     @Post('image/:folder')
-    @Roles('admin', 'merchant', 'partner', 'superadmin')
+    @Roles('admin', 'merchant', 'partner', 'superadmin', 'customer', 'support')
     @UseInterceptors(
         FileInterceptor('file', {
             limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
             fileFilter: (req, file, callback) => {
-                if (!file.mimetype.match(/\/(jpg|jpeg|png|webp|gif)$/)) {
+                if (!file.mimetype.match(/\/(jpg|jpeg|png|webp|gif|mp4|mpeg|quicktime|wav|mp3|ogg)$/)) {
                     return callback(
-                        new BadRequestException('Only image files are allowed!'),
+                        new BadRequestException('File type not supported for rich media!'),
                         false,
                     );
                 }
@@ -45,7 +45,7 @@ export class UploadsController {
     }
 
     @Post('document/:folder')
-    @Roles('admin', 'merchant', 'partner', 'superadmin')
+    @Roles('admin', 'merchant', 'partner', 'superadmin', 'customer', 'support')
     @UseInterceptors(
         FileInterceptor('file', {
             limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
@@ -60,6 +60,14 @@ export class UploadsController {
                     'image/gif',
                     'image/bmp',
                     'image/tiff',
+                    'video/mp4',
+                    'video/mpeg',
+                    'video/quicktime',
+                    'audio/mpeg',
+                    'audio/wav',
+                    'audio/ogg',
+                    'audio/mp3',
+                    'audio/webm',
                 ];
                 if (!allowedMimes.includes(file.mimetype)) {
                     return callback(

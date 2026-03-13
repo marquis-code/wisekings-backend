@@ -24,8 +24,9 @@ export class ShippingController {
     @Get('calculate')
     calculateFee(
         @Query('lat') lat: number,
-        @Query('lng') lng: number
+        @Query('lng') lng: number,
+        @Query('method') method: 'pickup' | 'waybill' | 'lagos_dispatch' = 'lagos_dispatch'
     ) {
-        return this.shippingService.calculateDeliveryFee(Number(lat), Number(lng));
+        return this.shippingService.calculateDeliveryFee(Number(lat), Number(lng), method);
     }
 }

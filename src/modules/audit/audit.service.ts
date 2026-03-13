@@ -12,7 +12,7 @@ export class AuditService {
 
     async findAll(paginationDto: PaginationDto, filters?: any) {
         const { page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc', search } = paginationDto;
-        const skip = (page - 1) * limit;
+        const skip = (Number(page) - 1) * Number(limit);
 
         const filter: any = {};
         if (search) {
@@ -32,7 +32,7 @@ export class AuditService {
                 .find(filter)
                 .sort({ [sortBy as string]: sortOrder === 'asc' ? 1 : -1 })
                 .skip(skip)
-                .limit(limit)
+                .limit(limit as any)
                 .lean(),
             this.auditLogModel.countDocuments(filter),
         ]);

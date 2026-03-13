@@ -1,3 +1,4 @@
+import 'module-alias/register';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -18,12 +19,14 @@ async function bootstrap() {
     // Security
     app.use(helmet());
     app.enableCors({
-        origin: function (origin, callback) {
-            callback(null, origin || '*');
+        origin: (origin, callback) => {
+            // Allow all origins
+            callback(null, true);
         },
         credentials: true,
         methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-        allowedHeaders: '*',
+        allowedHeaders: 'Origin,X-Requested-With,Content-Type,Accept,Authorization,Range',
+        exposedHeaders: 'Content-Range,X-Content-Range',
     });
 
     // Performance

@@ -14,7 +14,7 @@ export class ShippingService {
         @InjectModel(ShippingConfig.name) private configModel: Model<ShippingConfigDocument>,
         private configService: ConfigService,
     ) {
-        this.googleApiKey = this.configService.get<string>('GOOGLE_MAP_API_KEY') || '';
+        this.googleApiKey = this.configService.get<string>('GOOGLE_API_KEY') || this.configService.get<string>('GOOGLE_MAP_API_KEY') || '';
     }
 
     async getConfig() {
@@ -27,6 +27,7 @@ export class ShippingService {
                 warehouseLng: 3.4735,
                 baseFee: 1000,
                 pricePerKm: 200,
+                pricingTiers: []
             });
         }
         return config;
@@ -42,6 +43,7 @@ export class ShippingService {
         if (method === 'pickup') {
             return {
                 distanceKm: 0,
+                distanceMeters: 0,
                 fee: 0,
                 baseFee: config.baseFee,
                 pricePerKm: config.pricePerKm,
@@ -52,6 +54,7 @@ export class ShippingService {
         if (method === 'waybill') {
             return {
                 distanceKm: 0,
+                distanceMeters: 0,
                 fee: config.waybillFee || 3500,
                 baseFee: config.baseFee,
                 pricePerKm: config.pricePerKm,
@@ -59,17 +62,33 @@ export class ShippingService {
             };
         }
 
-        const distance = await this.getDistance(config.warehouseLat, config.warehouseLng, destLat, destLng);
+        const distanceMeters = await this.getDistance(config.warehouseLat, config.warehouseLng, destLat, destLng);
+        const distanceKm = distanceMeters / 1000;
 
-        // distance is in meters, convert to km
-        const distanceKm = distance / 1000;
-        const fee = config.baseFee + (distanceKm * config.pricePerKm);
+        let fee = 0;
+        let usedTier = false;
+
+        // Check for tiered pricing matches
+        if (config.pricingTiers && config.pricingTiers.length > 0) {
+            const match = config.pricingTiers.find(t => distanceMeters >= t.from && distanceMeters <= t.to);
+            if (match) {
+                fee = match.price;
+                usedTier = true;
+            }
+        }
+
+        // Fallback to km calculation if no tier matches or tiers aren't defined
+        if (!usedTier) {
+            fee = config.baseFee + (distanceKm * config.pricePerKm);
+        }
 
         return {
             distanceKm: parseFloat(distanceKm.toFixed(2)),
+            distanceMeters,
             fee: Math.round(fee),
             baseFee: config.baseFee,
             pricePerKm: config.pricePerKm,
+            usedTier,
             method: 'lagos_dispatch'
         };
     }

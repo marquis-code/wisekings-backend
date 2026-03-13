@@ -149,7 +149,7 @@ export class WalletsService {
 
     async getWithdrawals(paginationDto: PaginationDto, filters?: any) {
         const { page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc' } = paginationDto;
-        const skip = (page - 1) * limit;
+        const skip = (Number(page) - 1) * Number(limit);
         const filter: any = {};
         if (filters?.status) filter.status = filters.status;
         if (filters?.requestedBy) filter.requestedBy = new Types.ObjectId(filters.requestedBy);
@@ -160,7 +160,7 @@ export class WalletsService {
                 .populate('processedBy', 'email fullName')
                 .sort({ [sortBy as string]: sortOrder === 'asc' ? 1 : -1 })
                 .skip(skip)
-                .limit(limit)
+                .limit(limit as any)
                 .lean(),
             this.withdrawalModel.countDocuments(filter),
         ]);

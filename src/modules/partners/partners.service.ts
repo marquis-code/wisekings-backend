@@ -4,7 +4,10 @@ import {
     NotFoundException,
     BadRequestException,
     Logger,
+    Inject,
 } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import * as bcrypt from 'bcrypt';
@@ -26,6 +29,7 @@ export class PartnersService {
         @InjectModel(Partner.name) private partnerModel: Model<PartnerDocument>,
         @InjectModel(User.name) private userModel: Model<UserDocument>,
         @InjectModel('Wallet') private walletModel: Model<any>,
+        @Inject(CACHE_MANAGER) private cacheManager: Cache,
         private readonly mailService: MailService,
         private readonly systemSettingsService: SystemSettingsService,
     ) { }
@@ -81,7 +85,7 @@ export class PartnersService {
 
     async findAll(paginationDto: PaginationDto, filters?: any) {
         const { page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc', search } = paginationDto;
-        const skip = (page - 1) * limit;
+        const skip = (Number(page) - 1) * Number(limit);
         const filter: any = {};
         if (search) {
             filter.$or = [
@@ -111,7 +115,7 @@ export class PartnersService {
                 .populate('userId', 'email fullName')
                 .sort({ [sortBy as string]: sortOrder === 'asc' ? 1 : -1 })
                 .skip(skip)
-                .limit(limit)
+                .limit(limit as number)
                 .lean(),
             this.partnerModel.countDocuments(filter),
         ]);
@@ -119,11 +123,17 @@ export class PartnersService {
     }
 
     async findById(id: string) {
+        const cacheKey = `partner:id:${id}`;
+        const cached = await this.cacheManager.get(cacheKey);
+        if (cached) return cached;
+
         const partner = await this.partnerModel.findById(id).populate('userId', 'email fullName avatar').lean();
         if (!partner) throw new NotFoundException('Partner not found');
         if (partner.bankAccountDetails?.accountNumber) {
             partner.bankAccountDetails.accountNumber = EncryptionUtil.decrypt(partner.bankAccountDetails.accountNumber);
         }
+
+        await this.cacheManager.set(cacheKey, partner, 3600);
         return partner;
     }
 
@@ -160,6 +170,10 @@ export class PartnersService {
     }
 
     async getDashboard(userId: string) {
+        const cacheKey = `partner:dashboard:${userId}`;
+        const cached = await this.cacheManager.get(cacheKey);
+        if (cached) return cached;
+
         const partner = await this.findByUserId(userId);
         const wallet = await this.walletModel.findOne({ ownerId: (partner as any)._id, ownerType: 'partner' }).lean();
 
@@ -173,7 +187,7 @@ export class PartnersService {
             referredBy: (partner as any).partnerCode
         }).select('fullName email createdAt').sort({ createdAt: -1 }).limit(5).lean();
 
-        return {
+        const result = {
             data: {
                 partner: {
                     partnerCode: partner.partnerCode,
@@ -197,6 +211,9 @@ export class PartnersService {
                 recentReferrals
             },
         };
+
+        await this.cacheManager.set(cacheKey, result, 300);
+        return result;
     }
 
     async getNetwork(userId: string) {
@@ -223,6 +240,13 @@ export class PartnersService {
     async update(id: string, dto: any) {
         const partner = await this.partnerModel.findByIdAndUpdate(id, dto, { new: true }).lean();
         if (!partner) throw new NotFoundException('Partner not found');
+
+        // Clear cache
+        await this.cacheManager.del(`partner:id:${id}`);
+        if (partner.userId) {
+            await this.cacheManager.del(`partner:dashboard:${partner.userId}`);
+        }
+
         return { message: 'Partner updated successfully', data: partner };
     }
 
@@ -230,6 +254,11 @@ export class PartnersService {
         const partner = await this.partnerModel.findByIdAndUpdate(id, { status: PartnerStatus.ACTIVE }, { new: true });
         if (!partner) throw new NotFoundException('Partner not found');
         await this.userModel.findByIdAndUpdate(partner.userId, { isActive: true });
+
+        // Clear cache
+        await this.cacheManager.del(`partner:id:${id}`);
+        await this.cacheManager.del(`partner:dashboard:${partner.userId}`);
+
         return { message: 'Partner approved' };
     }
 
@@ -237,6 +266,11 @@ export class PartnersService {
         const partner = await this.partnerModel.findByIdAndUpdate(id, { status: PartnerStatus.SUSPENDED, suspendedAt: new Date(), suspendedReason: reason }, { new: true });
         if (!partner) throw new NotFoundException('Partner not found');
         await this.userModel.findByIdAndUpdate(partner.userId, { isActive: false });
+
+        // Clear cache
+        await this.cacheManager.del(`partner:id:${id}`);
+        await this.cacheManager.del(`partner:dashboard:${partner.userId}`);
+
         return { message: 'Partner suspended' };
     }
 
@@ -355,6 +389,13 @@ export class PartnersService {
             await this.mailService.sendKycStatusUpdate(user.email, user.fullName, status, reason ? `${docLabel}: ${reason}` : docLabel);
         } catch (err) {
             this.logger.error(`Failed to send KYC email for partner: ${err.message}`);
+        }
+
+        // Clear cache
+        await this.cacheManager.del(`partner:id:${id}`);
+        if (partner.userId) {
+            const user = partner.userId as any;
+            await this.cacheManager.del(`partner:dashboard:${user?._id || user}`);
         }
 
         return { message: `Document ${status} successfully`, data: partner.kyc };

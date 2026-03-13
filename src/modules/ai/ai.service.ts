@@ -235,4 +235,29 @@ export class AiService {
 
         return { insight: response.choices[0].message?.content || "Analysis unavailable." };
     }
+
+    async generateSupportResponse(history: any[], userMessage: string, systemPrompt?: string) {
+        if (!this.isReady) return "I'm currently unable to assist. Please wait for an agent.";
+
+        const messages: any[] = [
+            { role: 'system', content: systemPrompt || 'You are the WiseKings Support AI. Assist the user professionally.' },
+            ...history.map(m => ({
+                role: m.senderId?.userType === 'customer' || m.senderId?.userType === 'partner' || m.senderId?.userType === 'merchant' ? 'user' : 'assistant',
+                content: m.content
+            })).slice(-10), // Take last 10 messages for context
+            { role: 'user', content: userMessage }
+        ];
+
+        try {
+            const response = await this.openai.chat.completions.create({
+                model: 'gpt-4o',
+                messages: messages,
+            });
+
+            return response.choices[0].message.content;
+        } catch (e) {
+            this.logger.error('AI Support generation failed:', e);
+            return "I'm having trouble processing your request. One moment please.";
+        }
+    }
 }

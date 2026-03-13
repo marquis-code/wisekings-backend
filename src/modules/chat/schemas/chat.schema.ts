@@ -10,7 +10,7 @@ export class Conversation {
     @Prop({ type: [{ type: Types.ObjectId, ref: 'User' }], required: true })
     participants: Types.ObjectId[];
 
-    @Prop({ type: String, enum: ['direct', 'group'], default: 'direct' })
+    @Prop({ type: String, enum: ['direct', 'group', 'support'], default: 'direct' })
     type: string;
 
     @Prop()
@@ -59,6 +59,9 @@ export class Message {
 
     @Prop({ type: [{ type: Types.ObjectId, ref: 'User' }], default: [] })
     readBy: Types.ObjectId[];
+
+    @Prop({ type: Types.ObjectId, ref: 'Message' })
+    replyTo: Types.ObjectId;
 
     @Prop({ default: false })
     isDeleted: boolean;

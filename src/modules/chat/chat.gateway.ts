@@ -51,11 +51,13 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
             // Join personal user room for targeted notifications
             await client.join(`user:${payload.sub}`);
 
-            this.logger.log(`Chat client connected: ${client.id} (User: ${payload.sub}, Role: ${payload.role})`);
+            this.logger.log(`[CHAT GATEWAY] Client connected: ${client.id} (User: ${payload.sub}, Role: ${payload.role})`);
 
             // Automatically join existing conversations to ensure real-time delivery
-            const conversations = await this.chatService.findUserConversations(payload.sub, { limit: 100 });
-            for (const conv of conversations.data) {
+            // We pass the full payload because ChatService now needs user metadata to check visibility
+            const conversations = await this.chatService.findUserConversations(payload, { limit: 100 });
+            for (const conv of conversations.data as any[]) {
+                this.logger.debug(`[CHAT GATEWAY] Client ${client.id} auto-joining room: conv:${conv._id}`);
                 await client.join(`conv:${conv._id.toString()}`);
             }
         } catch (error) {
@@ -75,18 +77,35 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
         await client.join(`conv:${conversationId}`);
         this.logger.debug(`Client ${client.id} joined room: conv:${conversationId}`);
+
+        // If an admin joins a support chat, notify others
+        if (client.data.user.role === 'admin' || client.data.user.role === 'superadmin' || client.data.user.role === 'support') {
+            const userName = client.data.user.fullName || client.data.user.name || 'Admin';
+            client.to(`conv:${conversationId}`).emit('chat:admin:joined', {
+                conversationId,
+                userId: client.data.user.sub,
+                userName,
+            });
+        }
+
         return { status: 'joined', room: conversationId };
     }
 
     @SubscribeMessage('chat:message')
     async handleMessage(
         @ConnectedSocket() client: Socket,
-        @MessageBody() payload: { conversationId: string; content: string; type?: MessageType; attachments?: string[] },
+        @MessageBody() payload: { 
+            conversationId: string; 
+            content: string; 
+            type?: MessageType; 
+            attachments?: string[];
+            replyTo?: string;
+        },
     ) {
         if (!client.data.user) return { error: 'Unauthorized' };
         const senderId = client.data.user.sub;
 
-        this.logger.log(`New message from ${senderId} in conv ${payload.conversationId}`);
+        this.logger.log(`[CHAT GATEWAY] Incoming message from ${senderId} in conv ${payload.conversationId} (Type: ${payload.type || 'text'})`);
 
         // Save to DB and get conversation participants
         const { message, conversation } = await this.chatService.saveMessage(
@@ -95,6 +114,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
             payload.content,
             payload.type,
             payload.attachments,
+            payload.replyTo,
         );
 
         // Ensure sender is in the room
@@ -105,26 +125,27 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
         // Also emit to each participant's personal room to ensure those not in the conv room get it
         if (conversation && conversation.participants) {
-            for (const participantId of conversation.participants) {
-                const pid = participantId.toString();
+            for (const participant of conversation.participants as any[]) {
+                const pid = participant._id?.toString() || participant.toString();
                 if (pid !== senderId) {
                     this.server.to(`user:${pid}`).emit('chat:message:new', message);
                 }
             }
         }
 
-        return message;
+        return { success: true, message };
     }
 
     @SubscribeMessage('chat:typing')
     handleTyping(
         @ConnectedSocket() client: Socket,
-        @MessageBody() payload: { conversationId: string; isTyping: boolean },
+        @MessageBody() payload: { conversationId: string; isTyping: boolean; userName?: string },
     ) {
         if (!client.data.user) return;
 
         client.to(`conv:${payload.conversationId}`).emit('chat:typing:state', {
             userId: client.data.user.sub,
+            userName: payload.userName || client.data.user.fullName || client.data.user.name || 'Someone',
             conversationId: payload.conversationId,
             isTyping: payload.isTyping,
         });

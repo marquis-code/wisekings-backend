@@ -14,7 +14,7 @@ import * as bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
 import { User, UserDocument } from '../users/schemas/user.schema';
 import { RegisterDto, LoginDto, RefreshTokenDto, VerifyOtpDto, ResendOtpDto, CompleteInvitationDto, SocialLoginDto } from './dto';
-import { UserType } from '../../common/constants';
+import { UserType } from '@common/constants';
 import { MailService } from '../mail/mail.service';
 import { FirebaseService } from './firebase.service';
 
@@ -498,6 +498,7 @@ export class AuthService {
         const payload = {
             sub: user._id,
             email: user.email,
+            fullName: user.fullName,
             userType: user.userType,
             role: user.role,
         };
