@@ -115,4 +115,5 @@ MerchantSchema.index({ userId: 1 });
 MerchantSchema.index({ status: 1 });
 MerchantSchema.index({ category: 1 });
 MerchantSchema.index({ rank: 1 });
+MerchantSchema.index({ fullName: 1 });
 MerchantSchema.index({ totalSalesValue: -1 });

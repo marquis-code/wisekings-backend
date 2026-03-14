@@ -97,6 +97,7 @@ export enum MessageType {
 export enum PaymentProvider {
     PAYSTACK = 'paystack',
     STRIPE = 'stripe',
+    DIRECT_TRANSFER = 'direct_transfer',
 }
 
 export const COMMISSION_RATES: Record<MerchantCategory, number> = {

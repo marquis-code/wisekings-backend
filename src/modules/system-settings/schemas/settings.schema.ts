@@ -29,6 +29,27 @@ export class SystemSettings {
 
   @Prop()
   whatsappNumber: string;
+  
+  @Prop({ type: Object })
+  customerBankDetails: {
+    accountName: string;
+    accountNumber: string;
+    bankName: string;
+  };
+
+  @Prop({ type: Object })
+  merchantBankDetails: {
+    accountName: string;
+    accountNumber: string;
+    bankName: string;
+  };
+
+  @Prop({ type: Object })
+  partnerBankDetails: {
+    accountName: string;
+    accountNumber: string;
+    bankName: string;
+  };
 }
 
 export const SystemSettingsSchema = SchemaFactory.createForClass(SystemSettings);

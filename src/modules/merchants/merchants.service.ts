@@ -135,6 +135,10 @@ export class MerchantsService {
         const { page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc', search } = paginationDto;
         const skip = (Number(page) - 1) * Number(limit);
 
+        const cacheKey = `merchants:all:${JSON.stringify(paginationDto)}:${JSON.stringify(filters)}`;
+        const cached = await this.cacheManager.get(cacheKey);
+        if (cached) return cached as PaginatedResult<any>;
+
         const filter: any = {};
         if (search) {
             filter.$or = [
@@ -172,7 +176,9 @@ export class MerchantsService {
             this.merchantModel.countDocuments(filter),
         ]);
 
-        return new PaginatedResult(data as any[], total, page, limit);
+        const result = new PaginatedResult(data as any[], total, page, limit);
+        await this.cacheManager.set(cacheKey, result, 3600);
+        return result;
     }
 
     async findById(id: string) {
@@ -278,6 +284,7 @@ export class MerchantsService {
         // Clear cache
         await this.cacheManager.del(`merchant:id:${merchant._id}`);
         await this.cacheManager.del(`merchant:dashboard:${userId}`);
+        await this.clearMerchantsListCache();
 
         return { message: 'Profile updated successfully', data: updated };
     }
@@ -369,6 +376,7 @@ export class MerchantsService {
         if (merchant.userId) {
             await this.cacheManager.del(`merchant:dashboard:${merchant.userId}`);
         }
+        await this.clearMerchantsListCache();
 
         return { message: 'Merchant updated successfully', data: merchant };
     }
@@ -394,6 +402,7 @@ export class MerchantsService {
         // Clear cache
         await this.cacheManager.del(`merchant:id:${id}`);
         await this.cacheManager.del(`merchant:dashboard:${merchant.userId}`);
+        await this.clearMerchantsListCache();
 
         return { message: 'Merchant suspended successfully' };
     }
@@ -418,6 +427,7 @@ export class MerchantsService {
         // Clear cache
         await this.cacheManager.del(`merchant:id:${id}`);
         await this.cacheManager.del(`merchant:dashboard:${merchant.userId}`);
+        await this.clearMerchantsListCache();
 
         return { message: 'Merchant activated successfully' };
     }
@@ -661,5 +671,13 @@ export class MerchantsService {
         }
 
         return code;
+    }
+
+    private async clearMerchantsListCache() {
+        const store = (this.cacheManager as any).store;
+        if (store && typeof store.keys === 'function') {
+            const keys = await store.keys('merchants:all:*');
+            await Promise.all(keys.map((key: string) => this.cacheManager.del(key)));
+        }
     }
 }

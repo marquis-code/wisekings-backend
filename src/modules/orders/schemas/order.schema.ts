@@ -60,6 +60,12 @@ export class Order {
     @Prop()
     paymentReference: string;
 
+    @Prop()
+    paymentProof: string;
+
+    @Prop({ type: String, enum: ['pending', 'verified', 'rejected'], default: 'pending' })
+    paymentProofStatus: string;
+
     @Prop({ type: Types.ObjectId, ref: 'Merchant', default: null })
     merchantId: Types.ObjectId;
 

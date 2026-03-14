@@ -43,6 +43,12 @@ export class Investment {
 
     @Prop({ type: Number })
     interestRateApplied: number;
+
+    @Prop()
+    paymentProof: string;
+
+    @Prop({ default: 'stripe' })
+    paymentMethod: string;
 }
 
 export const InvestmentSchema = SchemaFactory.createForClass(Investment);

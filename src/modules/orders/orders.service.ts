@@ -208,4 +208,36 @@ export class OrdersService {
         ]);
         return { total, pending, completed, cancelled, totalRevenue: revenue[0]?.total || 0 };
     }
+
+    async submitPaymentProof(id: string, proofUrl: string) {
+        const order = await this.orderModel.findById(id);
+        if (!order) throw new NotFoundException('Order not found');
+        
+        order.paymentProof = proofUrl;
+        order.paymentProofStatus = 'pending';
+        await order.save();
+        return { message: 'Payment proof submitted successfully', data: order };
+    }
+
+    async verifyPaymentProof(id: string, status: 'verified' | 'rejected') {
+        const order = await this.orderModel.findById(id);
+        if (!order) throw new NotFoundException('Order not found');
+        
+        order.paymentProofStatus = status;
+        if (status === 'verified') {
+            order.paymentStatus = PaymentStatus.PAID;
+            // Also trigger commission logic if applicable
+            if (order.status === OrderStatus.COMPLETED && (order.merchantId || order.partnerId)) {
+                await this.commissionsService.calculateCommission(
+                    order._id.toString(), order.totalAmount,
+                    order.merchantId?.toString(), order.partnerId?.toString(),
+                );
+            }
+        } else {
+            order.paymentStatus = PaymentStatus.FAILED;
+        }
+        
+        await order.save();
+        return { message: `Payment proof ${status}`, data: order };
+    }
 }

@@ -40,4 +40,16 @@ export class OrdersController {
     async bulkUpdateStatus(@Body() body: { ids: string[]; status: OrderStatus }) {
         return this.ordersService.bulkUpdateStatus(body.ids, body.status);
     }
+
+    @Post(':id/submit-proof')
+    async submitPaymentProof(@Param('id') id: string, @Body('proofUrl') proofUrl: string) {
+        return this.ordersService.submitPaymentProof(id, proofUrl);
+    }
+
+    @Patch(':id/verify-proof')
+    @Roles('superadmin', 'admin', 'finance')
+    @UseGuards(RolesGuard)
+    async verifyPaymentProof(@Param('id') id: string, @Body('status') status: 'verified' | 'rejected') {
+        return this.ordersService.verifyPaymentProof(id, status);
+    }
 }

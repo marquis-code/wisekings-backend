@@ -78,3 +78,43 @@ WithdrawalSchema.index({ walletId: 1 });
 WithdrawalSchema.index({ requestedBy: 1 });
 WithdrawalSchema.index({ status: 1 });
 WithdrawalSchema.index({ createdAt: -1 });
+
+// Transaction Schema for history and funding
+export type TransactionDocument = Transaction & Document;
+
+@Schema({ timestamps: true, collection: 'wallet_transactions' })
+export class Transaction {
+    @Prop({ type: Types.ObjectId, ref: 'Wallet', required: true })
+    walletId: Types.ObjectId;
+
+    @Prop({ type: Types.ObjectId, required: true })
+    userId: Types.ObjectId;
+
+    @Prop({ required: true })
+    amount: number;
+
+    @Prop({ required: true, enum: ['deposit', 'withdrawal', 'commission', 'bonus', 'purchase'] })
+    type: string;
+
+    @Prop({ enum: ['pending', 'completed', 'failed', 'cancelled'], default: 'pending' })
+    status: string;
+
+    @Prop()
+    description: string;
+
+    @Prop()
+    paymentProof: string; // URL for direct transfer proof
+
+    @Prop()
+    paymentReference: string;
+
+    @Prop({ type: Object })
+    metadata: any;
+}
+
+export const TransactionSchema = SchemaFactory.createForClass(Transaction);
+TransactionSchema.index({ walletId: 1 });
+TransactionSchema.index({ userId: 1 });
+TransactionSchema.index({ type: 1 });
+TransactionSchema.index({ status: 1 });
+TransactionSchema.index({ createdAt: -1 });

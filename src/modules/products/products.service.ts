@@ -36,12 +36,17 @@ export class ProductsService {
 
         const product = await this.productModel.create(dto);
         await this.cacheManager.del(`product:categories:*`); // Invalidate categories just in case
+        await this.clearProductsListCache();
         return product;
     }
 
     async findAll(paginationDto: PaginationDto, filters?: any, locale: string = 'en') {
         const { page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc', search } = paginationDto;
         const skip = ((page as any) - 1) * (limit as any);
+
+        const cacheKey = `products:all:${JSON.stringify(paginationDto)}:${JSON.stringify(filters)}:${locale}`;
+        const cached = await this.cacheManager.get(cacheKey);
+        if (cached) return cached as PaginatedResult<any>;
 
         const filter: any = {};
         if (search) {
@@ -66,7 +71,10 @@ export class ProductsService {
         ]);
 
         const localizedData = data.map(item => this.localizeProduct(item, locale));
-        return new PaginatedResult(localizedData, total, page, limit);
+        const result = new PaginatedResult(localizedData, total, page, limit);
+        
+        await this.cacheManager.set(cacheKey, result, 3600); // Cache for 1 hour
+        return result;
     }
 
     async findById(id: string, locale: string = 'en') {
@@ -126,6 +134,7 @@ export class ProductsService {
             await this.cacheManager.del(`product:slug:${product.slug}:*`);
         }
         await this.cacheManager.del(`product:recommendations:${id}:*`);
+        await this.clearProductsListCache();
 
         return product;
     }
@@ -141,6 +150,7 @@ export class ProductsService {
             await this.cacheManager.del(`product:slug:${(product as any).slug}:*`);
         }
         await this.cacheManager.del(`product:recommendations:${id}:*`);
+        await this.clearProductsListCache();
 
         return { message: 'Product deleted successfully' };
     }
@@ -293,5 +303,14 @@ export class ProductsService {
             p.createdAt?.toISOString() || ''
         ]);
         return [header.join(','), ...rows.map(r => r.join(','))].join('\n');
+    }
+
+    private async clearProductsListCache() {
+        // Pattern-based deletion for products:all:*
+        const store = (this.cacheManager as any).store;
+        if (store && typeof store.keys === 'function') {
+            const keys = await store.keys('products:all:*');
+            await Promise.all(keys.map((key: string) => this.cacheManager.del(key)));
+        }
     }
 }

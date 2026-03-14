@@ -58,4 +58,28 @@ export class WalletsController {
     async markAsPaid(@Param('id') id: string, @Body('reference') reference: string) {
         return this.walletsService.markAsPaid(id, reference);
     }
+
+    @Post('fund')
+    async requestFunding(
+        @CurrentUser('_id') userId: string,
+        @Body() body: { amount: number; proofUrl: string; description?: string },
+    ) {
+        return this.walletsService.requestFunding(userId, body.amount, body.proofUrl, body.description);
+    }
+
+    @Patch('transactions/:id/verify')
+    @Roles('superadmin', 'admin', 'finance')
+    @UseGuards(RolesGuard)
+    async verifyFunding(
+        @Param('id') id: string,
+        @Body('status') status: 'completed' | 'failed',
+        @CurrentUser('_id') adminId: string,
+    ) {
+        return this.walletsService.verifyFunding(id, status, adminId);
+    }
+
+    @Get('transactions/me')
+    async getMyTransactions(@CurrentUser('_id') userId: string, @Query() paginationDto: PaginationDto) {
+        return this.walletsService.getTransactionHistory(userId, paginationDto);
+    }
 }

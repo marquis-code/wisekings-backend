@@ -1,7 +1,7 @@
 import { Injectable, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { Wallet, WalletDocument, Withdrawal, WithdrawalDocument } from './schemas/wallet.schema';
+import { Wallet, WalletDocument, Withdrawal, WithdrawalDocument, Transaction, TransactionDocument } from './schemas/wallet.schema';
 import { WithdrawalStatus, MIN_WITHDRAWAL_AMOUNT } from '@common/constants';
 import { PaginationDto, PaginatedResult } from '@common/dto';
 import { EncryptionUtil } from '@common/utils';
@@ -13,6 +13,7 @@ export class WalletsService {
     constructor(
         @InjectModel('Wallet') private walletModel: Model<WalletDocument>,
         @InjectModel('Withdrawal') private withdrawalModel: Model<WithdrawalDocument>,
+        @InjectModel('Transaction') private transactionModel: Model<TransactionDocument>,
     ) { }
 
     async getWallet(ownerId: string, ownerType: string) {
@@ -177,5 +178,64 @@ export class WalletsService {
 
     async getMyWithdrawals(userId: string, paginationDto: PaginationDto) {
         return this.getWithdrawals(paginationDto, { requestedBy: userId });
+    }
+
+    async requestFunding(userId: string, amount: number, proofUrl: string, description?: string) {
+        const [merchant, partner] = await Promise.all([
+            this.walletModel.db.model('Merchant').findOne({ userId: new Types.ObjectId(userId) }).lean() as any,
+            this.walletModel.db.model('Partner').findOne({ userId: new Types.ObjectId(userId) }).lean() as any,
+        ]);
+
+        const ownerId = merchant?._id || partner?._id;
+        if (!ownerId) throw new NotFoundException('Profile not found');
+
+        const wallet = await this.walletModel.findOne({ ownerId });
+        if (!wallet) throw new NotFoundException('Wallet not found');
+
+        const transaction = await this.transactionModel.create({
+            walletId: wallet._id,
+            userId: new Types.ObjectId(userId),
+            amount,
+            type: 'deposit',
+            status: 'pending',
+            paymentProof: proofUrl,
+            description: description || `Wallet funding request for ₦${amount.toLocaleString()}`,
+        });
+
+        return { message: 'Funding request submitted', data: transaction };
+    }
+
+    async verifyFunding(transactionId: string, status: 'completed' | 'failed', adminId: string) {
+        const transaction = await this.transactionModel.findById(transactionId);
+        if (!transaction) throw new NotFoundException('Transaction not found');
+        if (transaction.status !== 'pending') throw new BadRequestException('Transaction is not pending');
+
+        transaction.status = status;
+        if (status === 'completed') {
+            await this.walletModel.findByIdAndUpdate(transaction.walletId, {
+                $inc: { availableBalance: transaction.amount, totalEarned: transaction.amount }
+            });
+        }
+        
+        transaction.metadata = { ...transaction.metadata, verifiedBy: adminId, verifiedAt: new Date() };
+        await transaction.save();
+
+        return { message: `Funding request ${status}`, data: transaction };
+    }
+
+    async getTransactionHistory(userId: string, paginationDto: PaginationDto) {
+        const { page = 1, limit = 10 } = paginationDto;
+        const skip = (Number(page) - 1) * Number(limit);
+        
+        const [data, total] = await Promise.all([
+            this.transactionModel.find({ userId: new Types.ObjectId(userId) })
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(limit as any)
+                .lean(),
+            this.transactionModel.countDocuments({ userId: new Types.ObjectId(userId) }),
+        ]);
+
+        return new PaginatedResult(data as any[], total, page, limit);
     }
 }

@@ -1,4 +1,4 @@
-import { Module, ValidationPipe } from '@nestjs/common';
+import { Module, ValidationPipe, Logger } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
@@ -7,7 +7,7 @@ import { CacheModule } from '@nestjs/cache-manager';
 import { redisStore } from 'cache-manager-redis-yet';
 import { APP_GUARD, APP_INTERCEPTOR, APP_FILTER } from '@nestjs/core';
 
-import configuration from './config/configuration';
+import configuration, { validationSchema } from './config/configuration';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { RolesModule } from './modules/roles/roles.module';
@@ -45,16 +45,38 @@ import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
         ConfigModule.forRoot({
             isGlobal: true,
             load: [configuration],
+            validationSchema,
+            validationOptions: {
+                allowUnknown: true,
+                abortEarly: true,
+            },
         }),
         CacheModule.registerAsync({
             isGlobal: true,
             imports: [ConfigModule],
-            useFactory: async (configService: ConfigService) => ({
-                store: await redisStore({
-                    url: configService.get('redis.url'),
-                    ttl: configService.get('redis.ttl'),
-                }),
-            }),
+            useFactory: async (configService: ConfigService) => {
+                const redisUrl = configService.get<string>('redis.url');
+                const redisTtl = configService.get<number>('redis.ttl');
+                
+                const logger = new Logger('CacheModule');
+                if (redisUrl) {
+                    logger.log(`Connecting to Redis at: ${redisUrl.split('@')[1] || 'URL masked'}`);
+                } else {
+                    logger.error('REDIS_URL is not defined in configuration!');
+                }
+
+                return {
+                    store: await redisStore({
+                        url: redisUrl,
+                        ttl: redisTtl,
+                        // Add reconnection strategy if needed
+                        socket: {
+                            keepAlive: true,
+                            reconnectStrategy: (retries: number) => Math.min(retries * 50, 2000),
+                        },
+                    } as any),
+                };
+            },
             inject: [ConfigService],
         }),
         ScheduleModule.forRoot(),

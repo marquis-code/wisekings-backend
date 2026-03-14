@@ -1,19 +1,27 @@
 import { Injectable, Logger, Inject } from '@nestjs/common';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
+import { HttpService } from '@nestjs/axios';
+import { ConfigService } from '@nestjs/config';
+import { firstValueFrom } from 'rxjs';
 
 @Injectable()
 export class CurrenciesService {
     private readonly logger = new Logger(CurrenciesService.name);
+    private readonly apiKey: string;
 
     constructor(
         @Inject(CACHE_MANAGER) private cacheManager: Cache,
-    ) {}
+        private readonly httpService: HttpService,
+        private readonly configService: ConfigService,
+    ) {
+        this.apiKey = this.configService.get<string>('exchangerate.apiKey', '');
+    }
 
-    // Hardcoded rates for now. In production, fetch from an external API.
-    private readonly rates: Record<string, number> = {
-        NGN: 1,      // Base currency
-        USD: 0.00065, // Example rate: 1 NGN = 0.00065 USD
+    // Fallback hardcoded rates
+    private readonly fallbackRates: Record<string, number> = {
+        NGN: 1,
+        USD: 0.00065,
         EUR: 0.00060,
         GBP: 0.00052,
     };
@@ -25,21 +33,56 @@ export class CurrenciesService {
         GBP: '£',
     };
 
-    async getRates() {
-        const cacheKey = 'currency:rates';
-        const cached = await this.cacheManager.get(cacheKey);
-        if (cached) return cached;
+    async getRates(): Promise<Record<string, number>> {
+        const cacheKey = 'currency:rates:ngn_based';
+        const cached = await this.cacheManager.get<Record<string, number>>(cacheKey);
+        
+        if (cached) {
+            return cached;
+        }
 
-        await this.cacheManager.set(cacheKey, this.rates, 86400);
-        return this.rates;
+        try {
+            const url = `https://v6.exchangerate-api.com/v6/${this.apiKey}/latest/USD`;
+            const { data } = await firstValueFrom(this.httpService.get(url));
+
+            if (data?.result === 'success' && data?.conversion_rates) {
+                const apiRates = data.conversion_rates;
+                const ngnUsdRate = apiRates['NGN'];
+                
+                if (!ngnUsdRate) throw new Error('NGN rate not found in API response');
+
+                const convertedRates: Record<string, number> = {};
+                // We want NGN as base (1), so we divide all rates by NGN's USD rate
+                // 1 NGN = apiRates[X] / apiRates['NGN'] of currency X
+                ['NGN', 'USD', 'EUR', 'GBP'].forEach(code => {
+                    if (apiRates[code]) {
+                        convertedRates[code] = apiRates[code] / ngnUsdRate;
+                    } else if (this.fallbackRates[code]) {
+                        convertedRates[code] = this.fallbackRates[code];
+                    }
+                });
+
+                // Cache for 24 hours (86400 seconds)
+                await this.cacheManager.set(cacheKey, convertedRates, 86400);
+                this.logger.log('Currency rates updated from ExchangeRate API');
+                return convertedRates;
+            }
+        } catch (error) {
+            this.logger.error(`Failed to fetch exchange rates: ${error.message}`);
+        }
+
+        // Return fallback rates if API fails
+        return this.fallbackRates;
     }
 
     async convert(amount: number, from: string, to: string): Promise<number> {
-        const fromRate = this.rates[from];
-        const toRate = this.rates[to];
+        const rates = await this.getRates();
+        const fromRate = rates[from];
+        const toRate = rates[to];
 
         if (!fromRate || !toRate) {
-            throw new Error(`Invalid currency: ${from} or ${to}`);
+            this.logger.error(`Invalid currency conversion: ${from} to ${to}`);
+            return amount; // Return original amount as safety
         }
 
         const baseAmount = amount / fromRate;
@@ -47,14 +90,15 @@ export class CurrenciesService {
     }
 
     async getCurrencies() {
-        const cacheKey = 'currency:list';
+        const cacheKey = 'currency:list:v2';
         const cached = await this.cacheManager.get(cacheKey);
         if (cached) return cached;
 
-        const result = Object.keys(this.rates).map(code => ({
+        const rates = await this.getRates();
+        const result = Object.keys(rates).map(code => ({
             code,
             symbol: this.currencySymbols[code] || code,
-            rate: this.rates[code],
+            rate: rates[code],
         }));
 
         await this.cacheManager.set(cacheKey, result, 86400);

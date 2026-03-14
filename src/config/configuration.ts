@@ -32,8 +32,9 @@ export const validationSchema = Joi.object({
     REDIS_USERNAME: Joi.string().optional(),
     REDIS_PASSWORD: Joi.string().optional(),
     REDIS_URL: Joi.string().required(),
-    REDIS_TTL: Joi.number().default(3600),
+    REDIS_TTL: Joi.number().default(86400),
     REDIS_MAX_ITEM: Joi.number().default(1000),
+    EXCHANGERATE_API_KEY: Joi.string().required(),
 });
 
 export const appConfig = registerAs('app', () => ({
@@ -94,8 +95,12 @@ export const redisConfig = registerAs('redis', () => ({
     username: process.env.REDIS_USERNAME,
     password: process.env.REDIS_PASSWORD,
     url: process.env.REDIS_URL,
-    ttl: parseInt(process.env.REDIS_TTL as string, 10) || 3600,
+    ttl: parseInt(process.env.REDIS_TTL as string, 10) || 86400,
     max: parseInt(process.env.REDIS_MAX_ITEM as string, 10) || 1000,
+}));
+
+export const exchangerateConfig = registerAs('exchangerate', () => ({
+    apiKey: process.env.EXCHANGERATE_API_KEY,
 }));
 
 const configuration = () => ({
@@ -109,6 +114,7 @@ const configuration = () => ({
     cors: corsConfig(),
     throttle: throttleConfig(),
     redis: redisConfig(),
+    exchangerate: exchangerateConfig(),
 });
 
 export default configuration;

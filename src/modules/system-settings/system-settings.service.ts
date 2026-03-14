@@ -80,6 +80,9 @@ export class SystemSettingsService implements OnModuleInit {
   async updateSettings(dto: Partial<SystemSettings>): Promise<SystemSettings> {
     const settings = await this.getSettings();
     if (dto.whatsappNumber !== undefined) settings.whatsappNumber = dto.whatsappNumber;
+    if (dto.customerBankDetails !== undefined) settings.customerBankDetails = dto.customerBankDetails;
+    if (dto.merchantBankDetails !== undefined) settings.merchantBankDetails = dto.merchantBankDetails;
+    if (dto.partnerBankDetails !== undefined) settings.partnerBankDetails = dto.partnerBankDetails;
     const saved = await settings.save();
     await this.cacheManager.del('system:settings');
     return saved;
