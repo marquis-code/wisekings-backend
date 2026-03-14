@@ -17,16 +17,17 @@ async function bootstrap() {
     const port = configService.get<number>('app.port') || 3000;
 
     // Security
-    app.use(helmet());
+    app.use(helmet({
+        crossOriginResourcePolicy: { policy: "cross-origin" },
+        contentSecurityPolicy: false,
+    }));
+    
     app.enableCors({
-        origin: (origin, callback) => {
-            // Allow all origins
-            callback(null, true);
-        },
+        origin: true, // Mirrors the request origin (standard for 'allow all' with credentials)
         credentials: true,
         methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-        allowedHeaders: 'Origin,X-Requested-With,Content-Type,Accept,Authorization,Range',
-        exposedHeaders: 'Content-Range,X-Content-Range',
+        allowedHeaders: 'Origin,X-Requested-With,Content-Type,Accept,Authorization,Range,x-locale,x-currency,x-auth-token',
+        exposedHeaders: 'Content-Range,X-Content-Range,Authorization',
     });
 
     // Performance
