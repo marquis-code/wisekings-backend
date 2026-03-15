@@ -8,9 +8,12 @@ import { MarketingCampaign, MarketingCampaignSchema } from './schemas/marketing-
 import { User, UserSchema } from '../users/schemas/user.schema';
 import { MailModule } from '../mail/mail.module';
 
+import { ScheduleModule } from '@nestjs/schedule';
+
 @Module({
     imports: [
         MailModule,
+        ScheduleModule.forRoot(),
         MongooseModule.forFeature([
             { name: Banner.name, schema: BannerSchema },
             { name: Promotion.name, schema: PromotionSchema },

@@ -40,6 +40,13 @@ export enum PartnerStatus {
     SUSPENDED = 'suspended',
 }
 
+export enum DeliveryMethod {
+    PICKUP = 'pickup',
+    DELIVERY = 'delivery',
+    WAYBILL = 'waybill',
+    LAGOS_DISPATCH = 'lagos_dispatch',
+}
+
 export enum OrderStatus {
     PENDING = 'pending',
     CONFIRMED = 'confirmed',

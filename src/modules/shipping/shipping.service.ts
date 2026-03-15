@@ -14,7 +14,8 @@ export class ShippingService {
         @InjectModel(ShippingConfig.name) private configModel: Model<ShippingConfigDocument>,
         private configService: ConfigService,
     ) {
-        this.googleApiKey = this.configService.get<string>('GOOGLE_API_KEY') || this.configService.get<string>('GOOGLE_MAP_API_KEY') || '';
+        const rawKey = this.configService.get<string>('GOOGLE_API_KEY') || this.configService.get<string>('GOOGLE_MAP_API_KEY') || '';
+        this.googleApiKey = rawKey.replace(/"/g, '').trim();
     }
 
     async getConfig() {
@@ -93,26 +94,46 @@ export class ShippingService {
         };
     }
 
+    /**
+     * Haversine formula: calculates the straight-line distance between two GPS coordinates.
+     * Used as a reliable fallback when Google Distance Matrix API is unavailable.
+     */
+    private haversineDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
+        const R = 6371000; // Earth's radius in meters
+        const toRad = (deg: number) => (deg * Math.PI) / 180;
+        const dLat = toRad(lat2 - lat1);
+        const dLng = toRad(lng2 - lng1);
+        const a =
+            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+            Math.sin(dLng / 2) * Math.sin(dLng / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c; // distance in meters
+    }
+
     private async getDistance(originLat: number, originLng: number, destLat: number, destLng: number): Promise<number> {
-        if (!this.googleApiKey) {
-            this.logger.error('GOOGLE_MAP_API_KEY is not defined in environment');
-            // Simplified fallback for testing (Haversine formula approximation or error)
-            throw new InternalServerErrorException('Shipping calculation error');
-        }
+        // Try Google Distance Matrix API first
+        if (this.googleApiKey) {
+            try {
+                const url = `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${originLat},${originLng}&destinations=${destLat},${destLng}&key=${this.googleApiKey}`;
+                const response = await axios.get(url);
 
-        try {
-            const url = `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${originLat},${originLng}&destinations=${destLat},${destLng}&key=${this.googleApiKey}`;
-            const response = await axios.get(url);
+                if (response.data.status === 'OK' && response.data.rows[0].elements[0].status === 'OK') {
+                    return response.data.rows[0].elements[0].distance.value; // in meters
+                }
 
-            if (response.data.status !== 'OK' || response.data.rows[0].elements[0].status !== 'OK') {
-                this.logger.error('Google Distance Matrix API Error:', response.data);
-                throw new InternalServerErrorException('Could not calculate distance');
+                this.logger.warn('Google Distance Matrix API returned non-OK status, falling back to Haversine:', response.data.status);
+            } catch (error) {
+                this.logger.warn('Google Distance Matrix API failed, falling back to Haversine:', error.message);
             }
-
-            return response.data.rows[0].elements[0].distance.value; // in meters
-        } catch (error) {
-            this.logger.error('Distance Fetch Error:', error);
-            throw new InternalServerErrorException('Distance service unavailable');
+        } else {
+            this.logger.warn('GOOGLE_MAP_API_KEY is not defined, using Haversine fallback');
         }
+
+        // Fallback: Haversine formula (straight-line distance * 1.3 for road approximation)
+        const straightLine = this.haversineDistance(originLat, originLng, destLat, destLng);
+        const estimatedRoadDistance = straightLine * 1.3;
+        this.logger.log(`Haversine fallback: straight-line=${(straightLine / 1000).toFixed(2)}km, estimated road=${(estimatedRoadDistance / 1000).toFixed(2)}km`);
+        return estimatedRoadDistance;
     }
 }

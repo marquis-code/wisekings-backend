@@ -96,7 +96,14 @@ export class RolesService implements OnModuleInit {
     }
 
     async create(data: { name: string; description: string; permissions: string[] }) {
-        return this.roleModel.create(data);
+        const existing = await this.roleModel.findOne({ name: data.name.toLowerCase().trim() });
+        if (existing) {
+            throw new Error(`A role with the name "${data.name}" already exists.`);
+        }
+        return this.roleModel.create({
+            ...data,
+            name: data.name.toLowerCase().trim()
+        });
     }
 
     async update(id: string, data: Partial<Role>) {

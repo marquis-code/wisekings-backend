@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
-import { OrderStatus, PaymentStatus, PaymentProvider } from '@common/constants';
+import { OrderStatus, PaymentStatus, PaymentProvider, DeliveryMethod } from '@common/constants';
 
 export type OrderDocument = Order & Document;
 
@@ -39,7 +39,7 @@ export class Order {
     @Prop({ default: 0 })
     discount: number;
 
-    @Prop({ type: String, enum: ['pickup', 'delivery'], default: 'delivery' })
+    @Prop({ type: String, enum: Object.values(DeliveryMethod), default: DeliveryMethod.DELIVERY })
     deliveryMethod: string;
 
     @Prop({ type: Object })

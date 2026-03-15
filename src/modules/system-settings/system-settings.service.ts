@@ -83,6 +83,11 @@ export class SystemSettingsService implements OnModuleInit {
     if (dto.customerBankDetails !== undefined) settings.customerBankDetails = dto.customerBankDetails;
     if (dto.merchantBankDetails !== undefined) settings.merchantBankDetails = dto.merchantBankDetails;
     if (dto.partnerBankDetails !== undefined) settings.partnerBankDetails = dto.partnerBankDetails;
+    if (dto.commissionRates !== undefined) settings.commissionRates = dto.commissionRates;
+    if (dto.rankThresholds !== undefined) settings.rankThresholds = dto.rankThresholds;
+    if (dto.minWithdrawal !== undefined) settings.minWithdrawal = dto.minWithdrawal;
+    if (dto.referralCookieLife !== undefined) settings.referralCookieLife = dto.referralCookieLife;
+    
     const saved = await settings.save();
     await this.cacheManager.del('system:settings');
     return saved;

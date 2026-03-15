@@ -23,6 +23,18 @@ export class MarketingCampaign {
     @Prop({ type: String, enum: ['merchants', 'partners', 'customers', 'all', 'custom'], required: true })
     targetAudience: string;
 
+    @Prop({ type: String, enum: ['draft', 'scheduled', 'sent', 'failed'], default: 'sent' })
+    status: string;
+
+    @Prop({ type: Date })
+    scheduledAt: Date;
+
+    @Prop({ type: Boolean, default: false })
+    isRecurring: boolean;
+
+    @Prop()
+    cronExpression: string;
+
     @Prop({ type: [String], default: [] })
     customEmails: string[];
 

@@ -27,6 +27,51 @@ export class SystemSettings {
     countries: string[];
   }[];
 
+  @Prop({
+    type: [{
+      name: { type: String, required: true },
+      percentage: { type: Number, required: true },
+      description: { type: String }
+    }],
+    default: [
+      { name: 'Standard', percentage: 3, description: 'Default merchant category' },
+      { name: 'Gold', percentage: 5, description: '₦1M+ total sales' },
+      { name: 'Premium', percentage: 7.5, description: '₦5M+ total sales' }
+    ]
+  })
+  commissionRates: {
+    name: string;
+    percentage: number;
+    description: string;
+  }[];
+
+  @Prop({
+    type: [{
+      name: { type: String, required: true },
+      minSales: { type: Number, required: true },
+      maxSales: { type: Number }
+    }],
+    default: [
+      { name: 'Starter', minSales: 0, maxSales: 99999 },
+      { name: 'Builder', minSales: 100000, maxSales: 499999 },
+      { name: 'Silver', minSales: 500000, maxSales: 999999 },
+      { name: 'Gold', minSales: 1000000, maxSales: 2999999 },
+      { name: 'Platinum', minSales: 3000000, maxSales: 4999999 },
+      { name: 'Diamond', minSales: 5000000 }
+    ]
+  })
+  rankThresholds: {
+    name: string;
+    minSales: number;
+    maxSales?: number;
+  }[];
+
+  @Prop({ default: 10000 })
+  minWithdrawal: number;
+
+  @Prop({ default: 30 })
+  referralCookieLife: number;
+
   @Prop()
   whatsappNumber: string;
   

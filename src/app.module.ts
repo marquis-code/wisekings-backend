@@ -71,8 +71,12 @@ import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
                         ttl: redisTtl,
                         // Add reconnection strategy if needed
                         socket: {
-                            keepAlive: true,
-                            reconnectStrategy: (retries: number) => Math.min(retries * 50, 2000),
+                            keepAlive: 10000,
+                            connectTimeout: 20000,
+                            reconnectStrategy: (retries: number) => {
+                                logger.warn(`Redis reconnection attempt #${retries}`);
+                                return Math.min(retries * 100, 3000);
+                            },
                         },
                     } as any),
                 };

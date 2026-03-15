@@ -112,7 +112,8 @@ export class ChatService {
         ]);
 
         // Process AI/Auto-response triggers if message is from a non-admin in a support chat
-        this.handleAutoResponse(conversation, senderId, content);
+        // DISABLED: Leading to infinite loops. User requested removal.
+        // this.handleAutoResponse(conversation, senderId, content);
 
         return {
             message: populatedMessage,
@@ -123,6 +124,21 @@ export class ChatService {
     private async handleAutoResponse(conversation: any, senderId: string, content: string) {
         if (!conversation || conversation.type !== 'support') return;
 
+        // Find system admin for the response
+        const systemAdmin = await this.messageModel.db.model('User').findOne({ userType: 'admin' }).exec();
+        if (!systemAdmin) return;
+
+        // CRITICAL: Prevent infinite loop by not responding to the system admin itself
+        if (senderId.toString() === systemAdmin._id.toString()) return;
+
+        // Prevent responding to common error messages to avoid AI retry loops
+        const errorMessages = [
+            "I'm having trouble processing your request",
+            "I'm currently unable to assist",
+            "AI Assistant is not configured"
+        ];
+        if (errorMessages.some(msg => content.includes(msg))) return;
+
         // Check if sender is an admin (we only auto-respond to customers/partners/merchants)
         const participants = conversation.participants as any[];
         const sender = participants.find(p => p._id.toString() === senderId);
@@ -130,10 +146,6 @@ export class ChatService {
 
         const config = await this.configService.getConfig();
         const isWorkingHours = await this.configService.isWithinBusinessHours();
-
-        // Find system admin for the response
-        const systemAdmin = await this.messageModel.db.model('User').findOne({ userType: 'admin' }).exec();
-        if (!systemAdmin) return;
 
         // 1. Business Hours Check
         if (!isWorkingHours && config.offlineMessage) {

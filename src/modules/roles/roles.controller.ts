@@ -34,19 +34,19 @@ export class RolesController {
     }
 
     @Post()
-    @Roles('superadmin')
+    @Roles('superadmin', 'admin')
     async create(@Body() data: { name: string; description: string; permissions: string[] }) {
         return this.rolesService.create(data);
     }
 
     @Put(':id')
-    @Roles('superadmin')
+    @Roles('superadmin', 'admin')
     async update(@Param('id') id: string, @Body() data: any) {
         return this.rolesService.update(id, data);
     }
 
     @Delete(':id')
-    @Roles('superadmin')
+    @Roles('superadmin', 'admin')
     async delete(@Param('id') id: string) {
         return this.rolesService.delete(id);
     }

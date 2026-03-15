@@ -7,7 +7,11 @@ import { MarketingCampaign, MarketingCampaignDocument } from './schemas/marketin
 import { User, UserDocument } from '../users/schemas/user.schema';
 import { MailService } from '../mail/mail.service';
 import { UserType } from '@common/constants';
+import { Cron, CronExpression } from '@nestjs/schedule';
+
+@Injectable()
 export class MarketingService {
+    private readonly logger = new Logger(MarketingService.name);
     constructor(
         @InjectModel(Banner.name) private bannerModel: Model<BannerDocument>,
         @InjectModel(Promotion.name) private promotionModel: Model<PromotionDocument>,
@@ -79,32 +83,56 @@ export class MarketingService {
     }
 
     // === CAMPAIGNS ===
-    async sendCampaign(userId: string, data: { title: string; subject: string; content: string; bannerUrl?: string; previewText?: string; targetAudience: 'merchants' | 'partners' | 'customers' | 'all' | 'custom'; customEmails?: string[] }) {
+    async sendCampaign(userId: string, data: { 
+        title: string; 
+        subject: string; 
+        content: string; 
+        bannerUrl?: string; 
+        previewText?: string; 
+        targetAudience: 'merchants' | 'partners' | 'customers' | 'all' | 'custom'; 
+        customEmails?: string[];
+        scheduledAt?: Date;
+        isRecurring?: boolean;
+        cronExpression?: string;
+    }) {
+        const campaign = await this.campaignModel.create({
+            ...data,
+            createdBy: userId,
+            status: data.scheduledAt ? 'scheduled' : 'sent',
+            sentAt: data.scheduledAt ? null : new Date(),
+        });
+
+        if (data.scheduledAt) {
+            return { message: 'Campaign scheduled successfully', campaignId: campaign._id };
+        }
+
+        return this.executeCampaign(campaign);
+    }
+
+    async executeCampaign(campaign: MarketingCampaignDocument) {
         let users: { email: string; fullName?: string }[] = [];
 
-        if (data.targetAudience === 'custom' && data.customEmails) {
-            users = data.customEmails.map(email => ({ email: email.trim() }));
+        if (campaign.targetAudience === 'custom' && campaign.customEmails) {
+            users = campaign.customEmails.map(email => ({ email: email.trim() }));
         } else {
             const filter: any = { isActive: true };
-            if (data.targetAudience === 'merchants') filter.userType = UserType.MERCHANT;
-            else if (data.targetAudience === 'partners') filter.userType = UserType.PARTNER;
-            else if (data.targetAudience === 'customers') filter.userType = UserType.CUSTOMER;
+            if (campaign.targetAudience === 'merchants') filter.userType = UserType.MERCHANT;
+            else if (campaign.targetAudience === 'partners') filter.userType = UserType.PARTNER;
+            else if (campaign.targetAudience === 'customers') filter.userType = UserType.CUSTOMER;
 
             users = await this.userModel.find(filter).select('email fullName').lean();
         }
 
-        const campaign = await this.campaignModel.create({
-            ...data,
-            createdBy: userId,
-            recipientsCount: users.length,
-            sentAt: new Date(),
-        });
+        // Update campaign with recipient count
+        await this.campaignModel.findByIdAndUpdate(campaign._id, { recipientsCount: users.length, sentAt: new Date(), status: 'sent' });
 
         const failedEmails: string[] = [];
+        const plainText = this.stripHtml(campaign.content);
+        const htmlContent = this.formatCampaignHtml(campaign);
 
         for (const user of users) {
             try {
-                await this.mailService.sendEmail(user.email, data.subject, data.content);
+                await this.mailService.sendEmail(user.email, campaign.subject, htmlContent, undefined, undefined, plainText);
             } catch (err) {
                 failedEmails.push(user.email);
             }
@@ -115,6 +143,50 @@ export class MarketingService {
         }
 
         return { message: `Campaign sent to ${users.length - failedEmails.length} users successfully`, campaignId: campaign._id };
+    }
+
+    private stripHtml(html: string): string {
+        return html.replace(/<[^>]*>?/gm, '').trim();
+    }
+
+    private formatCampaignHtml(campaign: any): string {
+        let bannerHtml = '';
+        if (campaign.bannerUrl) {
+            bannerHtml = `
+                <div style="margin-bottom: 32px; border-radius: 24px; overflow: hidden; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);">
+                    <img src="${campaign.bannerUrl}" style="width: 100%; display: block;" alt="Campaign Banner" />
+                </div>`;
+        }
+
+        const bodyContent = `
+            ${bannerHtml}
+            <div style="font-size: 16px; line-height: 1.8; color: #475569;">
+                ${campaign.content}
+            </div>
+            <p style="margin-top: 40px; font-size: 13px; color: #94a3b8; text-align: center; font-style: italic;">
+                You are receiving this because you are a valued member of WiseKings.
+            </p>
+        `;
+
+        return this.mailService.brandWrapper(campaign.title, bodyContent);
+    }
+
+    @Cron(CronExpression.EVERY_MINUTE)
+    async handleScheduledCampaigns() {
+        const now = new Date();
+        const pending = await this.campaignModel.find({
+            status: 'scheduled',
+            scheduledAt: { $lte: now },
+            isRecurring: false
+        });
+
+        for (const campaign of pending) {
+            this.logger.log(`Executing scheduled campaign: ${campaign.title}`);
+            await this.executeCampaign(campaign);
+        }
+
+        // Note: Recurring campaigns (Cron Expression based) should ideally be handled by a more dynamic scheduler 
+        // if they are truly user-defined. For simplicity here, we'll just handle basic scheduling.
     }
 
     async getCampaigns() {

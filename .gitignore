@@ -43,3 +43,4 @@ Thumbs.db
 .npm/
 .cpanel.yml
 .history/
+firebase-service-account.json
