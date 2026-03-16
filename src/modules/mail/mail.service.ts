@@ -263,7 +263,7 @@ export class MailService {
 
   async sendAdminInvitationEmail(email: string, name: string, otpCode: string) {
     const templateName = 'ADMIN_INVITATION';
-    const adminUrl = this.configService.get('ADMIN_URL') || 'http://localhost:3000'; // Metadata says 3000
+    const adminUrl = this.configService.get('ADMIN_URL') || 'https://wisekings-backend-hq.onrender.com'; // Metadata says 3000
     const invitationLink = `${adminUrl}/join?email=${encodeURIComponent(email)}`;
     const variables = { name, otpCode, invitationLink };
     const fallbackSubject = 'Invitation to join WiseKings Admin';

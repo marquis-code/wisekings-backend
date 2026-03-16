@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Investment, InvestmentDocument } from './schemas/investment.schema';
 import { InvestmentProposal, InvestmentProposalDocument } from './schemas/investment-proposal.schema';
+import { InvestmentProduct, InvestmentProductDocument } from './schemas/investment-product.schema';
 import { MailService } from '../mail/mail.service';
 
 @Injectable()
@@ -10,6 +11,7 @@ export class InvestmentsService {
     constructor(
         @InjectModel(Investment.name) private investmentModel: Model<InvestmentDocument>,
         @InjectModel(InvestmentProposal.name) private proposalModel: Model<InvestmentProposalDocument>,
+        @InjectModel(InvestmentProduct.name) private productModel: Model<InvestmentProductDocument>,
         private readonly mailService: MailService,
     ) {}
 
@@ -60,5 +62,26 @@ export class InvestmentsService {
         }
 
         return investment;
+    }
+
+    // Investment Product Methods (PiggyVest style)
+    async createProduct(dto: any) {
+        return this.productModel.create(dto);
+    }
+
+    async findAllProducts(filters: any = {}) {
+        return this.productModel.find(filters).sort({ createdAt: -1 }).exec();
+    }
+
+    async findProductById(id: string) {
+        const product = await this.productModel.findById(id).exec();
+        if (!product) throw new NotFoundException('Investment product not found');
+        return product;
+    }
+
+    async updateProduct(id: string, update: any) {
+        const product = await this.productModel.findByIdAndUpdate(id, update, { new: true }).exec();
+        if (!product) throw new NotFoundException('Investment product not found');
+        return product;
     }
 }

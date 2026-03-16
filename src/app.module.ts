@@ -34,6 +34,7 @@ import { ShippingModule } from './modules/shipping/shipping.module';
 import { InvestmentsModule } from './modules/investments/investments.module';
 import { SystemSettingsModule } from './modules/system-settings/system-settings.module';
 import { ContactModule } from './modules/contact/contact.module';
+import { ProductionModule } from './modules/production/production.module';
 
 import { GlobalExceptionFilter } from './common/filters';
 import { TransformInterceptor, AuditInterceptor } from './common/interceptors';
@@ -132,6 +133,7 @@ import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
         InvestmentsModule,
         SystemSettingsModule,
         ContactModule,
+        ProductionModule,
     ],
     providers: [
         // Global Filter

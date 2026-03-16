@@ -4,6 +4,7 @@ import { InvestmentsService } from './investments.service';
 import { InvestmentsController } from './investments.controller';
 import { Investment, InvestmentSchema } from './schemas/investment.schema';
 import { InvestmentProposal, InvestmentProposalSchema } from './schemas/investment-proposal.schema';
+import { InvestmentProduct, InvestmentProductSchema } from './schemas/investment-product.schema';
 import { MailModule } from '../mail/mail.module';
 
 @Module({
@@ -11,6 +12,7 @@ import { MailModule } from '../mail/mail.module';
         MongooseModule.forFeature([
             { name: Investment.name, schema: InvestmentSchema },
             { name: InvestmentProposal.name, schema: InvestmentProposalSchema },
+            { name: InvestmentProduct.name, schema: InvestmentProductSchema },
         ]),
         MailModule,
     ],

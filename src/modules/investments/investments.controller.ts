@@ -48,4 +48,27 @@ export class InvestmentsController {
     async updateStatus(@Param('id') id: string, @Body() update: any) {
         return this.investmentsService.updateInvestmentStatus(id, update);
     }
+
+    // Investment Product Endpoints
+    @Post('products')
+    @Roles('admin')
+    async createProduct(@Body() dto: any) {
+        return this.investmentsService.createProduct(dto);
+    }
+
+    @Get('products')
+    async getProducts(@Query() query: any) {
+        return this.investmentsService.findAllProducts(query);
+    }
+
+    @Get('products/:id')
+    async getProduct(@Param('id') id: string) {
+        return this.investmentsService.findProductById(id);
+    }
+
+    @Put('products/:id')
+    @Roles('admin')
+    async updateProduct(@Param('id') id: string, @Body() update: any) {
+        return this.investmentsService.updateProduct(id, update);
+    }
 }
