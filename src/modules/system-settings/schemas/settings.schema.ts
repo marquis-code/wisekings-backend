@@ -95,6 +95,28 @@ export class SystemSettings {
     accountNumber: string;
     bankName: string;
   };
+
+  @Prop({ type: Object, default: {} })
+  emailMappings: Record<string, string>;
+
+  @Prop({
+    type: [{
+      name: { type: String, required: true },
+      address: { type: String, required: true },
+      phone: { type: String, required: true },
+      isActive: { type: Boolean, default: true }
+    }],
+    default: [
+      { name: 'Company Depot', address: '20, Olorunfunmi street behind philips factory ojota', phone: '', isActive: false },
+      { name: 'Factory Address', address: '13, Sonubi street, off Bakare street ketu, Lagos', phone: '', isActive: true }
+    ]
+  })
+  pickupLocations: {
+    name: string;
+    address: string;
+    phone: string;
+    isActive: boolean;
+  }[];
 }
 
 export const SystemSettingsSchema = SchemaFactory.createForClass(SystemSettings);

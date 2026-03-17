@@ -286,17 +286,15 @@ export class AuthService {
                 throw new BadRequestException('Email not provided by social provider');
             }
 
-            // Social login is only for customers (Storefront)
+            // Social login for all verified users
             let user = await this.userModel.findOne({ email: email.toLowerCase() });
 
             if (user) {
-                // If user exists but is NOT a customer, we shouldn't allow social login
-                // to prevent privileged account takeover or confusion
-                if (user.userType !== UserType.CUSTOMER) {
-                    throw new UnauthorizedException('Social login is only available for customer accounts');
-                }
+                // Allow social login if the email matches, regardless of userType
+                // This ensures existing Admins, Merchants, etc. can use social login
+                this.logger.log(`Social login for existing user: ${user.email} (${user.userType})`);
             } else {
-                // Create new customer user
+                // Create new customer user if they don't exist
                 user = await this.userModel.create({
                     email: email.toLowerCase(),
                     fullName: name || email.split('@')[0],
@@ -307,6 +305,7 @@ export class AuthService {
                     isEmailVerified: true,
                     avatar: picture,
                 });
+                this.logger.log(`Social signup created new customer: ${user.email}`);
             }
 
             if (!user.isActive) {

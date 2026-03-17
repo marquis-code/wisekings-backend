@@ -51,7 +51,9 @@ export enum OrderStatus {
     PENDING = 'pending',
     CONFIRMED = 'confirmed',
     PROCESSING = 'processing',
+    READY_FOR_PICKUP = 'ready_for_pickup',
     SHIPPED = 'shipped',
+    WAYBILLED = 'waybilled',
     DELIVERED = 'delivered',
     COMPLETED = 'completed',
     CANCELLED = 'cancelled',
@@ -105,6 +107,7 @@ export enum PaymentProvider {
     PAYSTACK = 'paystack',
     STRIPE = 'stripe',
     DIRECT_TRANSFER = 'direct_transfer',
+    WHATSAPP = 'whatsapp',
 }
 
 export const COMMISSION_RATES: Record<MerchantCategory, number> = {

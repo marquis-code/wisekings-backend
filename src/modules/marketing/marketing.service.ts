@@ -115,10 +115,24 @@ export class MarketingService {
         if (campaign.targetAudience === 'custom' && campaign.customEmails) {
             users = campaign.customEmails.map(email => ({ email: email.trim() }));
         } else {
-            const filter: any = { isActive: true };
-            if (campaign.targetAudience === 'merchants') filter.userType = UserType.MERCHANT;
-            else if (campaign.targetAudience === 'partners') filter.userType = UserType.PARTNER;
-            else if (campaign.targetAudience === 'customers') filter.userType = UserType.CUSTOMER;
+            const filter: any = {};
+            
+            if (campaign.targetAudience === 'active') {
+                filter.isActive = true;
+            } else if (campaign.targetAudience === 'merchants') {
+                filter.userType = UserType.MERCHANT;
+                filter.isActive = true;
+            } else if (campaign.targetAudience === 'partners') {
+                filter.userType = UserType.PARTNER;
+                filter.isActive = true;
+            } else if (campaign.targetAudience === 'customers') {
+                filter.userType = UserType.CUSTOMER;
+                filter.isActive = true;
+            } else if (campaign.targetAudience === 'all') {
+                // No specific filter, fetch all
+            } else {
+                filter.isActive = true;
+            }
 
             users = await this.userModel.find(filter).select('email fullName').lean();
         }

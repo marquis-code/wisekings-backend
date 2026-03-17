@@ -25,8 +25,18 @@ export class ShippingController {
     calculateFee(
         @Query('lat') lat: number,
         @Query('lng') lng: number,
-        @Query('method') method: 'pickup' | 'waybill' | 'lagos_dispatch' = 'lagos_dispatch'
+        @Query('method') method: 'pickup' | 'waybill' | 'lagos_dispatch' = 'lagos_dispatch',
+        @Query('country') country: string = 'Nigeria',
+        @Query('weight') weight: number = 0,
+        @Query('isHomeDelivery') isHomeDelivery: string = 'false'
     ) {
-        return this.shippingService.calculateDeliveryFee(Number(lat), Number(lng), method);
+        return this.shippingService.calculateDeliveryFee(
+            Number(lat), 
+            Number(lng), 
+            method, 
+            country, 
+            Number(weight), 
+            isHomeDelivery === 'true'
+        );
     }
 }

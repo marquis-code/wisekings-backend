@@ -3,7 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
 import { Order, OrderDocument } from './schemas/order.schema';
-import { OrderStatus, PaymentStatus } from '@common/constants';
+import { OrderStatus, PaymentStatus, PaymentProvider } from '@common/constants';
 import { PaginationDto, PaginatedResult } from '@common/dto';
 import { CommissionsService } from '../commissions/commissions.service';
 import { ShippingService } from '../shipping/shipping.service';
@@ -22,14 +22,39 @@ export class OrdersService {
     async create(dto: any, customerId: string) {
         const orderNumber = `WK-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
+        // Calculate total weight
+        const totalWeight = (dto.items || []).reduce((sum: number, item: any) => sum + (item.weight || 1) * (item.quantity || 1), 0);
+
         let shippingFee = 0;
+        let shippingDetails = null;
+
         if (dto.deliveryMethod !== 'pickup') {
+            const country = dto.shippingAddress?.country || 'Nigeria';
+            const isHomeDelivery = dto.isHomeDelivery || false;
+
             const result = await this.shippingService.calculateDeliveryFee(
                 dto.deliveryLocation?.lat || 0,
                 dto.deliveryLocation?.lng || 0,
-                dto.deliveryMethod
+                dto.deliveryMethod,
+                country,
+                totalWeight,
+                isHomeDelivery
             );
-            shippingFee = result.fee;
+
+            if (result.error) {
+                // For international shipping, if weight is not enough, this might happen.
+                // However, the checkout should have validated this.
+                this.logger.warn(`Shipping error for order ${orderNumber}: ${result.error}`);
+            }
+
+            shippingFee = result.fee || 0;
+            shippingDetails = {
+                baseRatePerKg: result.baseFee,
+                surcharge: result.surcharge,
+                deliveryTime: result.deliveryTime,
+                isInternational: result.isInternational || false,
+                country: result.country || country
+            };
         }
 
         // Handle point redemption
@@ -47,6 +72,8 @@ export class OrdersService {
         const order = await this.orderModel.create({
             ...dto,
             shippingFee,
+            totalWeight,
+            shippingDetails,
             totalAmount: finalAmount,
             orderNumber,
             customerId: new Types.ObjectId(customerId),
@@ -96,8 +123,29 @@ export class OrdersService {
         const order = await this.orderModel.findById(id);
         if (!order) throw new NotFoundException('Order not found');
 
+        // Delivery-specific status validation
+        if (order.deliveryMethod === 'pickup' && [OrderStatus.SHIPPED].includes(status)) {
+            throw new Error(`Status ${status} is not valid for pickup orders`);
+        }
+
         order.status = status;
 
+        if (status === OrderStatus.CONFIRMED && !order.confirmedAt) {
+            order.confirmedAt = new Date();
+        }
+
+        if (status === OrderStatus.PROCESSING && !order.processingAt) {
+            order.processingAt = new Date();
+        }
+
+        if (status === OrderStatus.READY_FOR_PICKUP && !order.readyForPickupAt) {
+            order.readyForPickupAt = new Date();
+        }
+
+        if (status === OrderStatus.WAYBILLED && !order.waybilledAt) {
+            order.waybilledAt = new Date();
+        }
+        
         if (status === OrderStatus.COMPLETED) {
             order.completedAt = new Date();
 
@@ -136,12 +184,21 @@ export class OrdersService {
     }
 
     async updatePaymentStatus(id: string, paymentStatus: PaymentStatus, paymentReference?: string, paymentProvider?: string) {
-        const order = await this.orderModel.findByIdAndUpdate(
-            id,
-            { paymentStatus, paymentReference, paymentProvider },
-            { new: true },
-        );
+        const order = await this.orderModel.findById(id);
         if (!order) throw new NotFoundException('Order not found');
+
+        order.paymentStatus = paymentStatus;
+        if (paymentReference) order.paymentReference = paymentReference;
+        if (paymentProvider) order.paymentProvider = paymentProvider as PaymentProvider;
+
+        // Automatically confirm order on successful payment
+        if (paymentStatus === PaymentStatus.PAID) {
+            order.status = OrderStatus.CONFIRMED;
+            if (!order.confirmedAt) order.confirmedAt = new Date();
+            this.logger.log(`Order ${order.orderNumber} confirmed via successful payment`);
+        }
+
+        await order.save();
 
         // If payment is confirmed and order is completed, trigger commission
         if (paymentStatus === PaymentStatus.PAID && order.status === OrderStatus.COMPLETED) {

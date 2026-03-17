@@ -4,6 +4,7 @@ import { Model } from 'mongoose';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 import { ShippingConfig, ShippingConfigDocument } from './schemas/shipping-config.schema';
+import { CurrenciesService } from '../currencies/currencies.service';
 
 @Injectable()
 export class ShippingService {
@@ -13,6 +14,7 @@ export class ShippingService {
     constructor(
         @InjectModel(ShippingConfig.name) private configModel: Model<ShippingConfigDocument>,
         private configService: ConfigService,
+        private currenciesService: CurrenciesService,
     ) {
         const rawKey = this.configService.get<string>('GOOGLE_API_KEY') || this.configService.get<string>('GOOGLE_MAP_API_KEY') || '';
         this.googleApiKey = rawKey.replace(/"/g, '').trim();
@@ -38,9 +40,60 @@ export class ShippingService {
         return this.configModel.findOneAndUpdate({ isActive: true }, dto, { new: true, upsert: true });
     }
 
-    async calculateDeliveryFee(destLat: number, destLng: number, method: 'pickup' | 'waybill' | 'lagos_dispatch' = 'lagos_dispatch') {
+    async calculateDeliveryFee(
+        destLat: number, 
+        destLng: number, 
+        method: 'pickup' | 'waybill' | 'lagos_dispatch' = 'lagos_dispatch',
+        country: string = 'Nigeria',
+        weight: number = 0,
+        isHomeDelivery: boolean = false
+    ) {
         const config = await this.getConfig();
 
+        // 1. Check for International Zones
+        const intZone = config.internationalZones?.find(z => z.country.toLowerCase() === country.toLowerCase());
+        
+        if (intZone) {
+            if (weight < intZone.minWeight) {
+                return {
+                    error: `Minimum order weight for ${intZone.country} is ${intZone.minWeight}kg. Your current weight is ${weight}kg.`,
+                    minWeight: intZone.minWeight,
+                    currentWeight: weight,
+                    isInternational: true
+                };
+            }
+
+            let fee = weight * intZone.baseRatePerKg;
+            let surcharge = 0;
+
+            // Canada Home Delivery Surcharge ($4/kg)
+            if (intZone.country === 'Canada' && isHomeDelivery && intZone.surchargePerKg > 0) {
+                try {
+                    const rates = await this.currenciesService.getRates();
+                    const ngnRate = 1; // Base
+                    const usdToNgn = 1 / (rates['USD'] || 0.00065); // Inverse of NGN/USD to get NGN per 1 USD
+                    
+                    surcharge = (intZone.surchargePerKg * weight) * usdToNgn; 
+                    fee += surcharge;
+                } catch (e) {
+                    this.logger.error('Failed to calculate Canada surcharge:', e.message);
+                }
+            }
+
+            return {
+                distanceKm: 0,
+                distanceMeters: 0,
+                fee: Math.round(fee),
+                baseFee: intZone.baseRatePerKg,
+                method: 'international',
+                deliveryTime: intZone.deliveryTime,
+                isInternational: true,
+                country: intZone.country,
+                surcharge: Math.round(surcharge)
+            };
+        }
+
+        // 2. Local Logic (Nigeria)
         if (method === 'pickup') {
             return {
                 distanceKm: 0,
@@ -90,7 +143,8 @@ export class ShippingService {
             baseFee: config.baseFee,
             pricePerKm: config.pricePerKm,
             usedTier,
-            method: 'lagos_dispatch'
+            method: 'lagos_dispatch',
+            isInternational: false
         };
     }
 

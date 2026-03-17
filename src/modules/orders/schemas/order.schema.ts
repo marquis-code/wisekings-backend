@@ -39,6 +39,18 @@ export class Order {
     @Prop({ default: 0 })
     discount: number;
 
+    @Prop({ default: 0 })
+    totalWeight: number;
+
+    @Prop({ type: Object })
+    shippingDetails: {
+        baseRatePerKg?: number;
+        surcharge?: number;
+        deliveryTime?: string;
+        isInternational: boolean;
+        country: string;
+    };
+
     @Prop({ type: String, enum: Object.values(DeliveryMethod), default: DeliveryMethod.DELIVERY })
     deliveryMethod: string;
 
@@ -88,6 +100,18 @@ export class Order {
 
     @Prop()
     notes: string;
+
+    @Prop()
+    confirmedAt: Date;
+
+    @Prop()
+    processingAt: Date;
+
+    @Prop()
+    readyForPickupAt: Date;
+
+    @Prop()
+    waybilledAt: Date;
 
     @Prop()
     completedAt: Date;

@@ -24,11 +24,12 @@ export class FirebaseService implements OnModuleInit {
 
         try {
             if (projectId && privateKey && clientEmail) {
+                const cleanedKey = privateKey.replace(/^['"]|['"]$/g, '').replace(/\\n/g, '\n').trim();
                 this.logger.log('Firebase Admin: Initializing from individual environment variables');
                 this.firebaseApp = admin.initializeApp({
                     credential: admin.credential.cert({
                         projectId,
-                        privateKey: privateKey.replace(/\\n/g, '\n'),
+                        privateKey: cleanedKey,
                         clientEmail
                     }),
                 });

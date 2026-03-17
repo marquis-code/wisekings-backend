@@ -85,6 +85,8 @@ export class PaymentsService {
     }
 
     async verifyPaystackWebhook(signature: string, payload: any) {
+        this.logger.log(`Received Paystack webhook: ${payload.event}`);
+        
         // Secure Signature Verification
         const hash = crypto.createHmac('sha512', this.paystackSecret).update(JSON.stringify(payload)).digest('hex');
 
@@ -94,19 +96,22 @@ export class PaymentsService {
         }
 
         const event = payload.event;
+        this.logger.debug(`Paystack event payload: ${JSON.stringify(payload.data?.metadata)}`);
 
         if (event === 'charge.success') {
-            const orderId = payload.data.metadata?.orderId;
+            const orderId = payload.data.metadata?.orderId || payload.data.metadata?.custom_fields?.find((f: any) => f.variable_name === 'orderId')?.value;
             const reference = payload.data.reference;
 
             if (orderId) {
+                this.logger.log(`Confirming payment for Order ${orderId} (Ref: ${reference})`);
                 await this.ordersService.updatePaymentStatus(
                     orderId,
                     PaymentStatus.PAID,
                     reference,
                     'paystack',
                 );
-                this.logger.log(`Payment confirmed for Order ${orderId} via Paystack`);
+            } else {
+                this.logger.warn(`Paystack webhook received but no orderId found in metadata. Reference: ${reference}`);
             }
         }
 
@@ -147,18 +152,22 @@ export class PaymentsService {
             throw new BadRequestException(`Webhook Error: ${err.message}`);
         }
 
+        this.logger.log(`Received Stripe event: ${event.type}`);
+
         if (event.type === 'payment_intent.succeeded') {
             const intent = event.data.object as Stripe.PaymentIntent;
             const orderId = intent.metadata.orderId;
 
             if (orderId) {
+                this.logger.log(`Confirming payment for Order ${orderId} via Stripe (ID: ${intent.id})`);
                 await this.ordersService.updatePaymentStatus(
                     orderId,
                     PaymentStatus.PAID,
                     intent.id,
                     'stripe',
                 );
-                this.logger.log(`Payment confirmed for Order ${orderId} via Stripe`);
+            } else {
+                this.logger.warn(`Stripe webhook received but no orderId found in metadata (ID: ${intent.id})`);
             }
         }
 

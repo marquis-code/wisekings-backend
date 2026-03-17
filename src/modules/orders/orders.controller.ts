@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Param, Body, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Put, Param, Body, Query, UseGuards } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { Roles, CurrentUser } from '../../common/decorators';
 import { RolesGuard } from '../../common/guards';
@@ -39,6 +39,16 @@ export class OrdersController {
     @UseGuards(RolesGuard)
     async bulkUpdateStatus(@Body() body: { ids: string[]; status: OrderStatus }) {
         return this.ordersService.bulkUpdateStatus(body.ids, body.status);
+    }
+
+    @Patch(':id/status')
+    @Put(':id/status') // Fallback for environments where PATCH is restricted
+    @Roles('superadmin', 'admin', 'support')
+    @UseGuards(RolesGuard)
+    async updateStatus(@Param('id') id: string, @Body() body: any) {
+        // Handle both { "status": "..." } and raw status if sent incorrectly
+        const status = (body && typeof body === 'object') ? body.status : body;
+        return this.ordersService.updateStatus(id, status as OrderStatus);
     }
 
     @Post(':id/submit-proof')
