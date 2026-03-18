@@ -16,19 +16,43 @@ async function bootstrap() {
     const configService = app.get(ConfigService);
     const port = configService.get<number>('app.port') || 3000;
 
+    // Aggressive CORS fix - allow all for development
+    app.enableCors({
+        origin: (origin, callback) => {
+            // Allow all origins
+            callback(null, true);
+        },
+        credentials: true,
+        methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+        allowedHeaders: [
+            'Origin',
+            'X-Requested-With',
+            'Content-Type',
+            'Accept',
+            'Authorization',
+            'Range',
+            'x-locale',
+            'x-currency',
+            'x-auth-token',
+            'x-client-id',
+            'x-client-secret',
+            'x-api-key',
+            'cache-control',
+            'pragma',
+            'if-modified-since'
+        ],
+        exposedHeaders: '*',
+        preflightContinue: false,
+        optionsSuccessStatus: 204,
+    });
+
     // Security
     app.use(helmet({
         crossOriginResourcePolicy: { policy: "cross-origin" },
+        crossOriginOpenerPolicy: false,
+        crossOriginEmbedderPolicy: false,
         contentSecurityPolicy: false,
     }));
-    
-    app.enableCors({
-        origin: true, // Mirrors the request origin (standard for 'allow all' with credentials)
-        credentials: true,
-        methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-        allowedHeaders: 'Origin,X-Requested-With,Content-Type,Accept,Authorization,Range,x-locale,x-currency,x-auth-token',
-        exposedHeaders: 'Content-Range,X-Content-Range,Authorization',
-    });
 
     // Performance
     app.use(compression());

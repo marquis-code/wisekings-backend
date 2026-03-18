@@ -33,6 +33,7 @@ const ProductSchema = new mongoose.Schema({
     totalSold: { type: Number, default: 0 },
     avgRating: { type: Number, default: 0 },
     reviewCount: { type: Number, default: 0 },
+    relatedProducts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }],
 }, { timestamps: true });
 
 const Category = mongoose.model('Category', CategorySchema, 'categories');
@@ -74,6 +75,7 @@ const products = [
         weight: 300,
         tags: ['popcorn', 'sharing', 'party', 'bulk'],
         slug: 'popcorn-30pcs-per-bag',
+        images: ['https://images.unsplash.com/photo-1578332158093-4a004bb15d65?auto=format&fit=crop&q=80&w=800'],
     },
 
     // ── Potato Chips ──────────────────────────────────────────────────────────
@@ -88,6 +90,7 @@ const products = [
         weight: 220,
         tags: ['potato chips', 'jar', 'crispy'],
         slug: 'potato-chips-220g-jar',
+        images: ['https://images.unsplash.com/photo-1566478989037-eec1707849e7?auto=format&fit=crop&q=80&w=800'],
     },
     {
         name: 'Potato Chips 350g Pack',
@@ -100,6 +103,7 @@ const products = [
         weight: 350,
         tags: ['potato chips', 'pack', 'value'],
         slug: 'potato-chips-350g-pack',
+        images: ['https://images.unsplash.com/photo-1613967193490-1d17b930c1a1?auto=format&fit=crop&q=80&w=800'],
     },
     {
         name: 'Potato Chips Sachet',
@@ -112,6 +116,7 @@ const products = [
         weight: 50,
         tags: ['potato chips', 'sachet', 'on-the-go', 'affordable'],
         slug: 'potato-chips-sachet',
+        images: ['https://images.unsplash.com/photo-1599490659213-e2b9527bb087?auto=format&fit=crop&q=80&w=800'],
     },
 
     // ── Plantain Chips ────────────────────────────────────────────────────────
@@ -126,6 +131,8 @@ const products = [
         weight: 300,
         tags: ['plantain chips', 'jar', 'ripe', 'premium'],
         slug: 'ripe-plantain-chips-300g-jar',
+        images: ['https://images.unsplash.com/photo-1623933939524-814d9b4dbcb4?auto=format&fit=crop&q=80&w=800'],
+        relatedSlugs: ['unripe-plantain-chips-300g-jar']
     },
     {
         name: 'Ripe Plantain Chips 30g x 24pcs Per Bag',
@@ -138,6 +145,7 @@ const products = [
         weight: 720,
         tags: ['plantain chips', 'bulk', 'retail', '24-pack'],
         slug: 'ripe-plantain-chips-30g-x-24pcs-per-bag',
+        images: ['https://images.unsplash.com/photo-1549465220-1a8b9238cd48?q=80&w=800&auto=format&fit=crop'],
     },
     {
         name: 'Ripe Plantain Chips 50g Pouch x 12pcs',
@@ -150,6 +158,7 @@ const products = [
         weight: 600,
         tags: ['plantain chips', 'pouch', 'carton', '12-pack'],
         slug: 'ripe-plantain-chips-50g-pouch-x-12pcs',
+        images: ['https://images.unsplash.com/photo-1505576391880-b3f9d713dc4f?auto=format&fit=crop&q=80&w=800'],
     },
     {
         name: 'Ripe Plantain Chips 50g Pouch x 24pcs',
@@ -162,6 +171,7 @@ const products = [
         weight: 1200,
         tags: ['plantain chips', 'pouch', 'wholesale', '24-pack'],
         slug: 'ripe-plantain-chips-50g-pouch-x-24pcs',
+        images: ['https://images.unsplash.com/photo-1528975604071-b4dc52a2d18c?auto=format&fit=crop&q=80&w=800'],
     },
     {
         name: 'Ripe Plantain Chips 50g Pouch x 50pcs',
@@ -174,6 +184,22 @@ const products = [
         weight: 2500,
         tags: ['plantain chips', 'pouch', 'bulk', 'distributor', '50-pack'],
         slug: 'ripe-plantain-chips-50g-pouch-x-50pcs',
+        images: ['https://images.unsplash.com/photo-1534073828943-f801091bb18c?auto=format&fit=crop&q=80&w=800'],
+        relatedSlugs: ['ripe-plantain-chips-30g-x-24pcs-per-bag', 'ripe-plantain-chips-50g-pouch-x-24pcs']
+    },
+    {
+        name: 'Unripe Plantain Chips 300g Jar',
+        description: 'Savory and crispy unripe plantain chips. A healthy, low-sugar alternative to our ripe chips, packed with the same Wisekings quality.',
+        price: 4300,
+        compareAtPrice: 4800,
+        stock: 80,
+        categorySlug: 'plantain-chips',
+        sku: 'WK-PLT-U300J',
+        weight: 300,
+        tags: ['plantain chips', 'jar', 'unripe', 'savory'],
+        slug: 'unripe-plantain-chips-300g-jar',
+        images: ['https://images.unsplash.com/photo-1596461404969-9ae70f2830c1?auto=format&fit=crop&q=80&w=800'],
+        relatedSlugs: ['ripe-plantain-chips-300g-jar']
     },
 ];
 
@@ -212,9 +238,28 @@ async function seedSnacks() {
                 continue;
             }
 
-            const { categorySlug, ...productPayload } = prodData;
+            const { categorySlug, relatedSlugs, ...productPayload } = prodData as any;
             await (Product as any).create({ ...productPayload, category: category._id });
             console.log(`   ✔  ${productPayload.name}  (₦${productPayload.price.toLocaleString()})`);
+        }
+
+        // Second pass to link related products
+        console.log('\n🔗  Linking related products...');
+        const allProducts = await (Product as any).find({});
+        for (const prodData of products as any) {
+            if (prodData.relatedSlugs && prodData.relatedSlugs.length > 0) {
+                const targetProduct = allProducts.find((p: any) => p.slug === prodData.slug);
+                const relatedIds = prodData.relatedSlugs
+                    .map((slug: string) => allProducts.find((p: any) => p.slug === slug)?._id)
+                    .filter(Boolean);
+                
+                if (targetProduct && relatedIds.length > 0) {
+                    await (Product as any).findByIdAndUpdate(targetProduct._id, {
+                        $set: { relatedProducts: relatedIds }
+                    });
+                    console.log(`   ✔  Linked ${relatedIds.length} products to ${prodData.name}`);
+                }
+            }
         }
 
         console.log('\n🎉  Seeding completed successfully!');

@@ -3,6 +3,7 @@ import { ShippingService } from './shipping.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { Public } from '../../common/decorators/public.decorator';
 
 @Controller('shipping')
 export class ShippingController {
@@ -21,8 +22,30 @@ export class ShippingController {
         return this.shippingService.updateConfig(dto);
     }
 
+    @Public()
     @Get('calculate')
     calculateFee(
+        @Query('lat') lat: number,
+        @Query('lng') lng: number,
+        @Query('method') method: 'pickup' | 'waybill' | 'lagos_dispatch' = 'lagos_dispatch',
+        @Query('country') country: string = 'Nigeria',
+        @Query('weight') weight: number = 0,
+        @Query('isHomeDelivery') isHomeDelivery: string = 'false'
+    ) {
+        console.log('Calculating shipping fee for:', { lat, lng, method, country, weight, isHomeDelivery });
+        return this.shippingService.calculateDeliveryFee(
+            Number(lat), 
+            Number(lng), 
+            method, 
+            country, 
+            Number(weight), 
+            isHomeDelivery === 'true'
+        );
+    }
+
+    @Public()
+    @Get('calculate-public')
+    calculateFeePublic(
         @Query('lat') lat: number,
         @Query('lng') lng: number,
         @Query('method') method: 'pickup' | 'waybill' | 'lagos_dispatch' = 'lagos_dispatch',

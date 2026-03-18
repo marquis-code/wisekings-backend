@@ -66,6 +66,9 @@ export class Product {
 
     @Prop({ default: 0 })
     recommendedOrderQuantity: number;
+
+    @Prop({ type: [{ type: Types.ObjectId, ref: 'Product' }], default: [] })
+    relatedProducts: Types.ObjectId[];
 }
 
 export const ProductSchema = SchemaFactory.createForClass(Product);

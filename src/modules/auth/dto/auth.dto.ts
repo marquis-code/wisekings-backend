@@ -93,3 +93,22 @@ export class SocialLoginDto {
     @IsString()
     idToken: string;
 }
+
+export class CheckoutAuthDto {
+    @IsNotEmpty()
+    @IsEmail()
+    email: string;
+
+    @IsNotEmpty()
+    @IsString()
+    @MinLength(8)
+    password: string;
+
+    @IsOptional()
+    @IsString()
+    fullName?: string;
+
+    @IsOptional()
+    @IsString()
+    phone?: string;
+}

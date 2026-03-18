@@ -55,7 +55,23 @@ export class PaymentsService {
 
     // --- Paystack logic ---
     async initializePaystack(orderId: string, email: string, amount: number) {
-        const amountInKobo = Math.round(amount * 100);
+        // Calculate amount to charge customer so business receives the full 'amount'
+        // Paystack Fee (NGN): 1.5% + 100 NGN (100 NGN waived for < 2500 NGN)
+        // Cap: 2000 NGN
+        
+        let amountToCharge = amount;
+        if (amount < 2500) {
+            amountToCharge = amount / (1 - 0.015);
+        } else {
+            amountToCharge = (amount + 100) / (1 - 0.015);
+        }
+
+        // If the calculated fee exceeds 2000, cap the fee at 2000
+        if (amountToCharge - amount > 2000) {
+            amountToCharge = amount + 2000;
+        }
+
+        const amountInKobo = Math.round(amountToCharge * 100);
 
         try {
             const response = await axios.post(

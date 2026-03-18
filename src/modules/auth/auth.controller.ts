@@ -18,6 +18,7 @@ import {
     ResendOtpDto,
     CompleteInvitationDto,
     SocialLoginDto,
+    CheckoutAuthDto,
 } from './dto';
 import { Public } from '../../common/decorators';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
@@ -98,6 +99,13 @@ export class AuthController {
     @HttpCode(HttpStatus.OK)
     async verifyLoginOtp(@Body() verifyOtpDto: VerifyOtpDto) {
         return this.authService.verifyLoginOtp(verifyOtpDto);
+    }
+
+    @Public()
+    @Post('checkout-auth')
+    @HttpCode(HttpStatus.OK)
+    async checkoutAuth(@Body() checkoutAuthDto: CheckoutAuthDto) {
+        return this.authService.checkoutAuth(checkoutAuthDto);
     }
 
     @Public()

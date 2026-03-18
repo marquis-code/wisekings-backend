@@ -21,9 +21,13 @@ export class ProductsService {
     ) { }
 
     async create(dto: any) {
-        if (dto.category) {
+        if (dto.category && Types.ObjectId.isValid(dto.category)) {
             const category = await this.categoryModel.findById(dto.category);
             if (!category) throw new NotFoundException('Category not found');
+        } else if (dto.category === '' || dto.category === null) {
+            delete dto.category;
+        } else if (dto.category) {
+             throw new BadRequestException('Invalid category ID');
         }
 
         // Handle string to Map conversion if necessary for legacy-style DTOs
@@ -56,8 +60,12 @@ export class ProductsService {
                 { tags: { $regex: search, $options: 'i' } },
             ];
         }
-        if (filters?.category) filter.category = new Types.ObjectId(filters.category);
-        if (filters?.isActive !== undefined) filter.isActive = filters.isActive;
+        if (filters?.category && Types.ObjectId.isValid(filters.category)) {
+            filter.category = new Types.ObjectId(filters.category);
+        }
+        if (filters?.isActive !== undefined && filters?.isActive !== null && filters?.isActive !== '') {
+            filter.isActive = String(filters.isActive) === 'true';
+        }
 
         const [data, total] = await Promise.all([
             this.productModel
@@ -85,6 +93,7 @@ export class ProductsService {
         const product = await this.productModel
             .findById(id)
             .populate('category', 'name slug')
+            .populate('relatedProducts')
             .lean();
         if (!product) throw new NotFoundException('Product not found');
         
@@ -101,6 +110,7 @@ export class ProductsService {
         const product = await this.productModel
             .findOne({ slug, isActive: true })
             .populate('category', 'name slug')
+            .populate('relatedProducts')
             .lean();
         if (!product) throw new NotFoundException('Product not found');
         
@@ -110,9 +120,13 @@ export class ProductsService {
     }
 
     async update(id: string, dto: any) {
-        if (dto.category) {
+        if (dto.category && Types.ObjectId.isValid(dto.category)) {
             const category = await this.categoryModel.findById(dto.category);
             if (!category) throw new NotFoundException('Category find failed');
+        } else if (dto.category === '' || dto.category === null) {
+            dto.category = null; // Use null for "No category" instead of empty string
+        } else if (dto.category) {
+            throw new BadRequestException('Invalid category ID');
         }
 
         // Handle string to Map conversion if necessary (fixes "Iterator value R" 500 error)
@@ -187,10 +201,9 @@ export class ProductsService {
             dto.description = { en: dto.description };
         }
 
-        const existing = await this.categoryModel.findOne({ slug: dto.slug });
-        if (existing) throw new BadRequestException('Category slug must be unique');
-
-        return this.categoryModel.create(dto);
+        const category = await this.categoryModel.create(dto);
+        await this.cacheManager.del(`product:categories:*`);
+        return category;
     }
 
     async updateCategory(id: string, dto: any) {
@@ -209,6 +222,10 @@ export class ProductsService {
         );
 
         if (!category) throw new NotFoundException('Category not found');
+        
+        // Clear category cache
+        await this.cacheManager.del(`product:categories:*`);
+        
         return category;
     }
 
@@ -221,6 +238,10 @@ export class ProductsService {
 
         const result = await this.categoryModel.findByIdAndDelete(id);
         if (!result) throw new NotFoundException('Category not found');
+        
+        // Clear category cache
+        await this.cacheManager.del(`product:categories:*`);
+        
         return { message: 'Category deleted successfully' };
     }
 
@@ -257,15 +278,24 @@ export class ProductsService {
     // Localization Helpers
     private localizeProduct(product: any, locale: string): any {
         if (!product) return null;
+        
+        // Ensure we are working with a plain object to avoid spread issues with Mongoose documents
+        const raw = typeof (product as any).toObject === 'function' ? (product as any).toObject() : product;
+        
         return {
-            ...product,
-            name: this.translate(product.name, locale),
-            description: this.translate(product.description, locale),
-            category: this.localizeCategory(product.category, locale),
+            ...raw,
+            name: this.translate(raw.name, locale),
+            description: this.translate(raw.description, locale),
+            category: this.localizeCategory(raw.category, locale),
+            relatedProducts: raw.relatedProducts?.map((p: any) => 
+                (p && typeof p === 'object' && (p.name || p._translations)) 
+                    ? this.localizeProduct(p, locale) 
+                    : p
+            ),
             // Include raw translations for editors if needed
             _translations: {
-                name: product.name,
-                description: product.description,
+                name: raw.name,
+                description: raw.description,
             }
         };
     }

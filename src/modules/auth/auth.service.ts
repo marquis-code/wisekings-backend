@@ -13,7 +13,7 @@ import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
 import { User, UserDocument } from '../users/schemas/user.schema';
-import { RegisterDto, LoginDto, RefreshTokenDto, VerifyOtpDto, ResendOtpDto, CompleteInvitationDto, SocialLoginDto } from './dto';
+import { RegisterDto, LoginDto, RefreshTokenDto, VerifyOtpDto, ResendOtpDto, CompleteInvitationDto, SocialLoginDto, CheckoutAuthDto } from './dto';
 import { UserType } from '@common/constants';
 import { MailService } from '../mail/mail.service';
 import { FirebaseService } from './firebase.service';
@@ -54,14 +54,14 @@ export class AuthService {
             phone,
             userType: registerDto.userType || UserType.CUSTOMER,
             role: registerDto.userType === UserType.ADMIN ? (registerDto.role || 'admin') : 'user',
-            isActive: false, // Must verify OTP to become active
-            isEmailVerified: false,
+            isActive: true, // Activated by default now
+            isEmailVerified: true, // Verified by default now
             otpCode,
             otpExpires,
         });
 
-        // Send OTP email
-        await this.mailService.sendOtpEmail(user.email, user.fullName, otpCode).catch(e => this.logger.error('Failed to send OTP email', e));
+        // Send Welcome email instead of OTP (optional, but keep it clean)
+        // await this.mailService.sendOtpEmail(user.email, user.fullName, otpCode).catch(e => this.logger.error('Failed to send OTP email', e));
 
         // Trigger emails if the user is a partner
         if (user.userType === UserType.PARTNER) {
@@ -70,8 +70,8 @@ export class AuthService {
         }
 
         return {
-            message: 'Registration successful. Please check your email for the verification code.',
-            requireOtp: true,
+            message: 'Registration successful.',
+            requireOtp: false,
             email: user.email,
         };
     }
@@ -183,7 +183,8 @@ export class AuthService {
             throw new UnauthorizedException('Invalid email or password');
         }
 
-        // --- NEW: OTP MFA for privileged roles ---
+        // --- REMOVED: OTP MFA for privileged roles as per request ---
+        /*
         const privilegedRoles = [UserType.ADMIN, UserType.MERCHANT, UserType.PARTNER];
         if (privilegedRoles.includes(user.userType as any)) {
             // Generate login OTP
@@ -204,6 +205,7 @@ export class AuthService {
                 email: user.email,
             };
         }
+        */
 
         // Generate tokens
         const tokens = await this.generateTokens(user);
@@ -487,6 +489,63 @@ export class AuthService {
                     fullName: user.fullName,
                     userType: user.userType,
                     role: user.role,
+                },
+                tokens,
+            },
+        };
+    }
+
+    async checkoutAuth(dto: CheckoutAuthDto) {
+        const { email, password, fullName, phone } = dto;
+
+        let user = await this.userModel.findOne({ email: email.toLowerCase() }).select('+password');
+
+        if (user) {
+            // Compare password for existing user
+            const isPasswordValid = await bcrypt.compare(password, user.password);
+            if (!isPasswordValid) {
+                throw new UnauthorizedException('Invalid email or password for existing account');
+            }
+        } else {
+            // Create a new user if not exists
+            const hashedPassword = await bcrypt.hash(password, 12);
+            user = await this.userModel.create({
+                email: email.toLowerCase(),
+                password: hashedPassword,
+                fullName: fullName || email.split('@')[0],
+                phone,
+                userType: UserType.CUSTOMER,
+                role: 'user',
+                isActive: true,
+                isEmailVerified: true,
+            });
+            this.logger.log(`Guest user created during checkout: ${user.email}`);
+        }
+
+        if (!user.isActive) {
+            throw new UnauthorizedException('Your account has been deactivated');
+        }
+
+        // Generate tokens
+        const tokens = await this.generateTokens(user);
+
+        // Update refresh token and last login
+        await this.userModel.findByIdAndUpdate(user._id, {
+            refreshToken: tokens.refreshToken,
+            lastLogin: new Date(),
+        });
+
+        return {
+            message: 'Checkout authentication successful',
+            data: {
+                user: {
+                    _id: user._id,
+                    email: user.email,
+                    fullName: user.fullName,
+                    phone: user.phone,
+                    userType: user.userType,
+                    role: user.role,
+                    avatar: user.avatar,
                 },
                 tokens,
             },

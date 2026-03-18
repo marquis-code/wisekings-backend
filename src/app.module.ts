@@ -66,11 +66,10 @@ import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
                     logger.error('REDIS_URL is not defined in configuration!');
                 }
 
-                return {
-                    store: await redisStore({
+                try {
+                    const store = await redisStore({
                         url: redisUrl,
                         ttl: redisTtl,
-                        // Add reconnection strategy if needed
                         socket: {
                             keepAlive: 10000,
                             connectTimeout: 20000,
@@ -79,8 +78,12 @@ import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
                                 return Math.min(retries * 100, 3000);
                             },
                         },
-                    } as any),
-                };
+                    } as any);
+                    return { store };
+                } catch (e) {
+                    logger.error(`Redis connection failed initial setup: ${e.message}. Falling back to in-memory cache.`);
+                    return { ttl: redisTtl }; // Fallback to memory
+                }
             },
             inject: [ConfigService],
         }),
