@@ -39,10 +39,6 @@ export class SystemSettingsService implements OnModuleInit {
   }
 
   async getSettings(): Promise<SystemSettingsDocument> {
-    const cacheKey = 'system:settings';
-    const cached = await this.cacheManager.get<SystemSettingsDocument>(cacheKey);
-    if (cached) return cached;
-
     let settings = await this.settingsModel.findOne().exec();
     if (!settings) {
       settings = await this.settingsModel.create({
@@ -59,7 +55,6 @@ export class SystemSettingsService implements OnModuleInit {
       });
     }
 
-    await this.cacheManager.set(cacheKey, settings, 86400); // Cache for 24 hours
     return settings;
   }
 

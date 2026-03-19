@@ -34,13 +34,6 @@ export class CurrenciesService {
     };
 
     async getRates(): Promise<Record<string, number>> {
-        const cacheKey = 'currency:rates:ngn_based';
-        const cached = await this.cacheManager.get<Record<string, number>>(cacheKey);
-        
-        if (cached) {
-            return cached;
-        }
-
         try {
             const url = `https://v6.exchangerate-api.com/v6/${this.apiKey}/latest/USD`;
             const { data } = await firstValueFrom(this.httpService.get(url));
@@ -62,8 +55,6 @@ export class CurrenciesService {
                     }
                 });
 
-                // Cache for 24 hours (86400 seconds)
-                await this.cacheManager.set(cacheKey, convertedRates, 86400);
                 this.logger.log('Currency rates updated from ExchangeRate API');
                 return convertedRates;
             }
@@ -90,10 +81,6 @@ export class CurrenciesService {
     }
 
     async getCurrencies() {
-        const cacheKey = 'currency:list:v2';
-        const cached = await this.cacheManager.get(cacheKey);
-        if (cached) return cached;
-
         const rates = await this.getRates();
         const result = Object.keys(rates).map(code => ({
             code,
@@ -101,7 +88,6 @@ export class CurrenciesService {
             rate: rates[code],
         }));
 
-        await this.cacheManager.set(cacheKey, result, 86400);
         return result;
     }
 }

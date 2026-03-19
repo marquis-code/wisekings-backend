@@ -123,17 +123,12 @@ export class PartnersService {
     }
 
     async findById(id: string) {
-        const cacheKey = `partner:id:${id}`;
-        const cached = await this.cacheManager.get(cacheKey);
-        if (cached) return cached;
-
         const partner = await this.partnerModel.findById(id).populate('userId', 'email fullName avatar').lean();
         if (!partner) throw new NotFoundException('Partner not found');
         if (partner.bankAccountDetails?.accountNumber) {
             partner.bankAccountDetails.accountNumber = EncryptionUtil.decrypt(partner.bankAccountDetails.accountNumber);
         }
 
-        await this.cacheManager.set(cacheKey, partner, 3600);
         return partner;
     }
 
@@ -170,10 +165,6 @@ export class PartnersService {
     }
 
     async getDashboard(userId: string) {
-        const cacheKey = `partner:dashboard:${userId}`;
-        const cached = await this.cacheManager.get(cacheKey);
-        if (cached) return cached;
-
         const partner = await this.findByUserId(userId);
         const wallet = await this.walletModel.findOne({ ownerId: (partner as any)._id, ownerType: 'partner' }).lean();
 
@@ -212,7 +203,6 @@ export class PartnersService {
             },
         };
 
-        await this.cacheManager.set(cacheKey, result, 300);
         return result;
     }
 

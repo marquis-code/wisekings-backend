@@ -135,10 +135,6 @@ export class MerchantsService {
         const { page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc', search } = paginationDto;
         const skip = (Number(page) - 1) * Number(limit);
 
-        const cacheKey = `merchants:all:${JSON.stringify(paginationDto)}:${JSON.stringify(filters)}`;
-        const cached = await this.cacheManager.get(cacheKey);
-        if (cached) return cached as PaginatedResult<any>;
-
         const filter: any = {};
         if (search) {
             filter.$or = [
@@ -177,15 +173,10 @@ export class MerchantsService {
         ]);
 
         const result = new PaginatedResult(data as any[], total, page, limit);
-        await this.cacheManager.set(cacheKey, result, 3600);
         return result;
     }
 
     async findById(id: string) {
-        const cacheKey = `merchant:id:${id}`;
-        const cached = await this.cacheManager.get(cacheKey);
-        if (cached) return cached;
-
         const merchant = await this.merchantModel
             .findById(id)
             .populate('userId', 'email fullName avatar lastLogin')
@@ -202,7 +193,6 @@ export class MerchantsService {
             );
         }
 
-        await this.cacheManager.set(cacheKey, merchant, 3600); // 1 hour cache
         return merchant;
     }
 
@@ -310,10 +300,6 @@ export class MerchantsService {
     }
 
     async getDashboard(userId: string) {
-        const cacheKey = `merchant:dashboard:${userId}`;
-        const cached = await this.cacheManager.get(cacheKey);
-        if (cached) return cached;
-
         const merchant = await this.findOrCreateByUserId(userId);
         const wallet = await this.walletModel
             .findOne({ ownerId: (merchant as any)._id, ownerType: 'merchant' })
@@ -345,7 +331,6 @@ export class MerchantsService {
             },
         };
 
-        await this.cacheManager.set(cacheKey, result, 300); // 5 mins cache for dashboard
         return result;
     }
 

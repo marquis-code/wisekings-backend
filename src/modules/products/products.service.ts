@@ -48,9 +48,7 @@ export class ProductsService {
         const { page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc', search } = paginationDto;
         const skip = ((page as any) - 1) * (limit as any);
 
-        const cacheKey = `products:all:${JSON.stringify(paginationDto)}:${JSON.stringify(filters)}:${locale}`;
-        const cached = await this.cacheManager.get(cacheKey);
-        if (cached) return cached as PaginatedResult<any>;
+        const skip = ((page as any) - 1) * (limit as any);
 
         const filter: any = {};
         if (search) {
@@ -81,15 +79,10 @@ export class ProductsService {
         const localizedData = data.map(item => this.localizeProduct(item, locale));
         const result = new PaginatedResult(localizedData, total, page, limit);
         
-        await this.cacheManager.set(cacheKey, result, 3600); // Cache for 1 hour
         return result;
     }
 
     async findById(id: string, locale: string = 'en') {
-        const cacheKey = `product:id:${id}:${locale}`;
-        const cached = await this.cacheManager.get(cacheKey);
-        if (cached) return cached;
-
         const product = await this.productModel
             .findById(id)
             .populate('category', 'name slug')
@@ -98,15 +91,10 @@ export class ProductsService {
         if (!product) throw new NotFoundException('Product not found');
         
         const localized = this.localizeProduct(product, locale);
-        await this.cacheManager.set(cacheKey, localized, 3600);
         return localized;
     }
 
     async findBySlug(slug: string, locale: string = 'en') {
-        const cacheKey = `product:slug:${slug}:${locale}`;
-        const cached = await this.cacheManager.get(cacheKey);
-        if (cached) return cached;
-
         const product = await this.productModel
             .findOne({ slug, isActive: true })
             .populate('category', 'name slug')
@@ -115,7 +103,6 @@ export class ProductsService {
         if (!product) throw new NotFoundException('Product not found');
         
         const localized = this.localizeProduct(product, locale);
-        await this.cacheManager.set(cacheKey, localized, 3600);
         return localized;
     }
 
@@ -171,10 +158,6 @@ export class ProductsService {
 
     // Category Methods
     async findAllCategories(locale: string = 'en') {
-        const cacheKey = `product:categories:${locale}`;
-        const cached = await this.cacheManager.get(cacheKey);
-        if (cached) return cached;
-
         const categories = await this.categoryModel
             .find()
             .populate('parentCategory', 'name')
@@ -182,7 +165,6 @@ export class ProductsService {
             .lean();
         
         const localized = categories.map(cat => this.localizeCategory(cat, locale));
-        await this.cacheManager.set(cacheKey, localized, 86400); // 24 hours
         return localized;
     }
 
@@ -246,10 +228,6 @@ export class ProductsService {
     }
 
     async getRecommendations(productId: string, limit = 4, locale = 'en') {
-        const cacheKey = `product:recommendations:${productId}:${locale}`;
-        const cached = await this.cacheManager.get(cacheKey);
-        if (cached) return cached;
-
         const product = await this.productModel.findById(productId);
         if (!product) throw new NotFoundException('Product not found');
 
@@ -263,7 +241,6 @@ export class ProductsService {
         }).limit(limit as any).lean();
 
         const localized = recommendations.map(p => this.localizeProduct(p as any, locale));
-        await this.cacheManager.set(cacheKey, localized, 3600);
         return localized;
     }
 
