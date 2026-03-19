@@ -13,7 +13,7 @@ import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
 import { User, UserDocument } from '../users/schemas/user.schema';
-import { RegisterDto, LoginDto, RefreshTokenDto, VerifyOtpDto, ResendOtpDto, CompleteInvitationDto, SocialLoginDto, CheckoutAuthDto } from './dto';
+import { RegisterDto, LoginDto, RefreshTokenDto, VerifyOtpDto, ResendOtpDto, CompleteInvitationDto, SocialLoginDto, CheckoutAuthDto, GuestChatDto } from './dto';
 import { UserType } from '@common/constants';
 import { MailService } from '../mail/mail.service';
 import { FirebaseService } from './firebase.service';
@@ -501,14 +501,14 @@ export class AuthService {
         let user = await this.userModel.findOne({ email: email.toLowerCase() }).select('+password');
 
         if (user) {
-            // Compare password for existing user
-            const isPasswordValid = await bcrypt.compare(password, user.password);
-            if (!isPasswordValid) {
-                throw new UnauthorizedException('Invalid email or password for existing account');
-            }
+            // Simplified Checkout: If user exists, we trust the email provider context for this specific flow
+            // Note: In a production environment with sensitive data, we would ideally use a magic link or OTP.
+            // For this specific request, we are bypassing the password check to optimize conversion.
+            this.logger.log(`Existing user identified during seamless checkout: ${user.email}`);
         } else {
             // Create a new user if not exists
-            const hashedPassword = await bcrypt.hash(password, 12);
+            const fallbackPassword = password || uuidv4();
+            const hashedPassword = await bcrypt.hash(fallbackPassword, 12);
             user = await this.userModel.create({
                 email: email.toLowerCase(),
                 password: hashedPassword,
@@ -519,7 +519,7 @@ export class AuthService {
                 isActive: true,
                 isEmailVerified: true,
             });
-            this.logger.log(`Guest user created during checkout: ${user.email}`);
+            this.logger.log(`New guest user created during seamless checkout: ${user.email}`);
         }
 
         if (!user.isActive) {
@@ -543,6 +543,60 @@ export class AuthService {
                     email: user.email,
                     fullName: user.fullName,
                     phone: user.phone,
+                    userType: user.userType,
+                    role: user.role,
+                    avatar: user.avatar,
+                },
+                tokens,
+            },
+        };
+    }
+
+    async guestChatAuth(dto: GuestChatDto) {
+        const { email, fullName } = dto;
+        let user = await this.userModel.findOne({ email: email.toLowerCase() });
+
+        if (user) {
+            // Prevent seamless guest auth for privileged users
+            if (user.userType !== UserType.CUSTOMER && user.role !== 'user') {
+                throw new UnauthorizedException('Staff must login to access support chat');
+            }
+            this.logger.log(`Existing customer identified for guest chat: ${user.email}`);
+        } else {
+            const fallbackPassword = uuidv4();
+            const hashedPassword = await bcrypt.hash(fallbackPassword, 12);
+            user = await this.userModel.create({
+                email: email.toLowerCase(),
+                password: hashedPassword,
+                fullName: fullName,
+                userType: UserType.CUSTOMER,
+                role: 'user',
+                isActive: true,
+                isEmailVerified: false,
+            });
+            this.logger.log(`New guest user created for chat: ${user.email}`);
+        }
+
+        if (!user.isActive) {
+            throw new UnauthorizedException('Your account has been deactivated');
+        }
+
+        // Generate tokens
+        const tokens = await this.generateTokens(user);
+
+        // Update refresh token and last login
+        await this.userModel.findByIdAndUpdate(user._id, {
+            refreshToken: tokens.refreshToken,
+            lastLogin: new Date(),
+        });
+
+        return {
+            message: 'Guest chat authenticated',
+            data: {
+                user: {
+                    _id: user._id,
+                    email: user.email,
+                    fullName: user.fullName,
                     userType: user.userType,
                     role: user.role,
                     avatar: user.avatar,

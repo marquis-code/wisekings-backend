@@ -99,10 +99,10 @@ export class CheckoutAuthDto {
     @IsEmail()
     email: string;
 
-    @IsNotEmpty()
+    @IsOptional()
     @IsString()
     @MinLength(8)
-    password: string;
+    password?: string;
 
     @IsOptional()
     @IsString()
@@ -112,3 +112,14 @@ export class CheckoutAuthDto {
     @IsString()
     phone?: string;
 }
+
+export class GuestChatDto {
+    @IsNotEmpty()
+    @IsString()
+    fullName: string;
+
+    @IsNotEmpty()
+    @IsEmail()
+    email: string;
+}
+

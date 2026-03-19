@@ -19,6 +19,7 @@ import {
     CompleteInvitationDto,
     SocialLoginDto,
     CheckoutAuthDto,
+    GuestChatDto,
 } from './dto';
 import { Public } from '../../common/decorators';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
@@ -113,5 +114,13 @@ export class AuthController {
     @HttpCode(HttpStatus.OK)
     async socialLogin(@Body() socialDto: SocialLoginDto) {
         return this.authService.socialLogin(socialDto);
+    }
+
+    @Public()
+    @Throttle({ default: { ttl: 60000, limit: 10 } }) // 10 attempts per minute
+    @Post('guest-chat')
+    @HttpCode(HttpStatus.OK)
+    async guestChatAuth(@Body() guestChatDto: GuestChatDto) {
+        return this.authService.guestChatAuth(guestChatDto);
     }
 }
