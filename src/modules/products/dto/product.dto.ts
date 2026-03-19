@@ -61,6 +61,26 @@ export class CreateProductDto {
     @IsString({ each: true })
     @IsOptional()
     relatedProducts?: string[];
+
+    @IsString()
+    @IsOptional()
+    unitDescription?: string;
+
+    @IsNumber()
+    @IsOptional()
+    unitPrice?: number;
+
+    @IsNumber()
+    @IsOptional()
+    quantityPerPack?: number;
+
+    @IsNumber()
+    @IsOptional()
+    costPricePerPack?: number;
+
+    @IsString()
+    @IsOptional()
+    varietyType?: string;
 }
 
 export class UpdateProductDto {
@@ -124,4 +144,48 @@ export class UpdateProductDto {
     @IsString({ each: true })
     @IsOptional()
     relatedProducts?: string[];
+
+    @IsString()
+    @IsOptional()
+    unitDescription?: string;
+
+    @IsNumber()
+    @IsOptional()
+    unitPrice?: number;
+
+    @IsNumber()
+    @IsOptional()
+    quantityPerPack?: number;
+
+    @IsNumber()
+    @IsOptional()
+    costPricePerPack?: number;
+
+    @IsString()
+    @IsOptional()
+    varietyType?: string;
+
+    @IsOptional()
+    _id?: any;
+
+    @IsOptional()
+    __v?: any;
+
+    @IsOptional()
+    _translations?: any;
+
+    @IsOptional()
+    totalSold?: number;
+
+    @IsOptional()
+    avgRating?: number;
+
+    @IsOptional()
+    reviewCount?: number;
+
+    @IsOptional()
+    createdAt?: any;
+
+    @IsOptional()
+    updatedAt?: any;
 }

@@ -95,9 +95,13 @@ export class SocialLoginDto {
 }
 
 export class CheckoutAuthDto {
-    @IsNotEmpty()
+    @IsOptional()
     @IsEmail()
-    email: string;
+    email?: string;
+
+    @IsOptional()
+    @IsString()
+    alternativePhone?: string;
 
     @IsOptional()
     @IsString()
@@ -119,7 +123,8 @@ export class GuestChatDto {
     fullName: string;
 
     @IsNotEmpty()
+    @IsOptional()
     @IsEmail()
-    email: string;
+    email?: string;
 }
 

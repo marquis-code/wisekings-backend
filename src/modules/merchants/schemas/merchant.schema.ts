@@ -44,6 +44,28 @@ export class Merchant {
     totalSalesValue: number;
 
     @Prop({ default: 0 })
+    points: number;
+
+    @Prop({ default: 0 })
+    currentStock: number;
+
+    @Prop({
+        type: [{
+            quantity: Number,
+            type: { type: String, enum: ['delivery', 'report', 'adjustment'] },
+            date: { type: Date, default: Date.now },
+            note: String,
+        }],
+        default: [],
+    })
+    stockHistory: {
+        quantity: number;
+        type: string;
+        date: Date;
+        note: string;
+    }[];
+
+    @Prop({ default: 0 })
     totalOrdersReferred: number;
 
     @Prop({ default: 0 })

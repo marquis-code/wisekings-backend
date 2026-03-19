@@ -26,6 +26,21 @@ export class Product {
     @Prop({ default: 0, min: 0 })
     stock: number;
 
+    @Prop()
+    unitDescription: string; // e.g. "30g"
+
+    @Prop({ min: 0 })
+    unitPrice: number;
+
+    @Prop({ min: 0 })
+    quantityPerPack: number; // e.g. 30, 24
+
+    @Prop({ min: 0 })
+    costPricePerPack: number;
+
+    @Prop()
+    varietyType: string; // e.g. "Mini Pack", "Ripe & Unripe"
+
     @Prop({ default: true })
     isActive: boolean;
 

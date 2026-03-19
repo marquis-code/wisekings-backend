@@ -498,21 +498,28 @@ export class AuthService {
     async checkoutAuth(dto: CheckoutAuthDto) {
         const { email, password, fullName, phone } = dto;
 
-        let user = await this.userModel.findOne({ email: email.toLowerCase() }).select('+password');
+        // Try to find user by email or phone
+        let user: UserDocument | null = null;
+        if (email) {
+            user = await this.userModel.findOne({ email: email.toLowerCase() }).select('+password');
+        } else if (phone) {
+            user = await this.userModel.findOne({ phone }).select('+password');
+        }
 
         if (user) {
-            // Simplified Checkout: If user exists, we trust the email provider context for this specific flow
-            // Note: In a production environment with sensitive data, we would ideally use a magic link or OTP.
-            // For this specific request, we are bypassing the password check to optimize conversion.
-            this.logger.log(`Existing user identified during seamless checkout: ${user.email}`);
+            this.logger.log(`Existing user identified during seamless checkout: ${user.email || user.phone}`);
         } else {
             // Create a new user if not exists
             const fallbackPassword = password || uuidv4();
             const hashedPassword = await bcrypt.hash(fallbackPassword, 12);
+            
+            // If no email, create a synthetic one or just rely on phone
+            const syntheticEmail = email ? email.toLowerCase() : `guest_${phone || uuidv4().substring(0, 8)}@wisekings.shop`;
+            
             user = await this.userModel.create({
-                email: email.toLowerCase(),
+                email: syntheticEmail,
                 password: hashedPassword,
-                fullName: fullName || email.split('@')[0],
+                fullName: fullName || (email ? email.split('@')[0] : 'Guest'),
                 phone,
                 userType: UserType.CUSTOMER,
                 role: 'user',
@@ -554,7 +561,7 @@ export class AuthService {
 
     async guestChatAuth(dto: GuestChatDto) {
         const { email, fullName } = dto;
-        let user = await this.userModel.findOne({ email: email.toLowerCase() });
+        let user: UserDocument | null = email ? await this.userModel.findOne({ email: email.toLowerCase() }) : null;
 
         if (user) {
             // Prevent seamless guest auth for privileged users
@@ -566,7 +573,7 @@ export class AuthService {
             const fallbackPassword = uuidv4();
             const hashedPassword = await bcrypt.hash(fallbackPassword, 12);
             user = await this.userModel.create({
-                email: email.toLowerCase(),
+                email: email?.toLowerCase() || `chat_${uuidv4().substring(0, 8)}@wisekings.shop`,
                 password: hashedPassword,
                 fullName: fullName,
                 userType: UserType.CUSTOMER,

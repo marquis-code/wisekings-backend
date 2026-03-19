@@ -33,6 +33,11 @@ const ProductSchema = new mongoose.Schema({
     totalSold: { type: Number, default: 0 },
     avgRating: { type: Number, default: 0 },
     reviewCount: { type: Number, default: 0 },
+    unitDescription: String,
+    unitPrice: Number,
+    quantityPerPack: Number,
+    costPricePerPack: Number,
+    varietyType: String,
     relatedProducts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }],
 }, { timestamps: true });
 
@@ -61,146 +66,249 @@ const categories = [
     },
 ];
 
-// ── Real Wisekings Products ───────────────────────────────────────────────────
+// ── Real Wisekings Products (14 Items from Table) ────────────────────────────────
 const products = [
-    // ── Popcorn ───────────────────────────────────────────────────────────────
+    // Popcorn
     {
-        name: 'Popcorn 30pcs Per Bag',
-        description: 'A generous bag of 30 individually portioned Wisekings popcorn packs. Light, airy, and bursting with flavour — ideal for sharing at events, parties, or as daily snacks.',
+        name: 'Popcorn (30g)',
+        description: 'Premium quality Popcorn (30g). A delectable and crunchy delight for everyone. variety: Mini Pack.',
         price: 2800,
-        compareAtPrice: 3000,
-        stock: 150,
+        unitPrice: 93.33,
+        unitDescription: '30g',
+        quantityPerPack: 30,
+        costPricePerPack: 2800,
+        varietyType: 'Mini Pack',
+        stock: 50,
         categorySlug: 'popcorn',
-        sku: 'WK-POP-30B',
-        weight: 300,
-        tags: ['popcorn', 'sharing', 'party', 'bulk'],
-        slug: 'popcorn-30pcs-per-bag',
-        images: ['https://images.unsplash.com/photo-1578332158093-4a004bb15d65?auto=format&fit=crop&q=80&w=800'],
+        sku: 'WK-POP-30G',
+        slug: 'popcorn-30g-mini',
+        weight: 0.03,
+        images: ['https://res.cloudinary.com/dn3xsj1jo/image/upload/v1773929215/products/bebux2js7cmfpluagv6r.jpg'],
+        tags: ['popcorn', 'snack', 'mini']
     },
-
-    // ── Potato Chips ──────────────────────────────────────────────────────────
+    // Plantain Chips
     {
-        name: 'Potato Chips 220g Jar',
-        description: 'Crispy, golden potato chips packed in a resealable 220g jar. NAFDAC-certified for your peace of mind. Great for kids, offices, and home snacking.',
-        price: 3000,
-        compareAtPrice: 3200,
-        stock: 120,
-        categorySlug: 'potato-chips',
-        sku: 'WK-CHI-220J',
-        weight: 220,
-        tags: ['potato chips', 'jar', 'crispy'],
-        slug: 'potato-chips-220g-jar',
-        images: ['https://images.unsplash.com/photo-1566478989037-eec1707849e7?auto=format&fit=crop&q=80&w=800'],
-    },
-    {
-        name: 'Potato Chips 350g Pack',
-        description: 'Extra value 350g pack of Wisekings signature potato chips. Crunchy and perfectly seasoned for a satisfying snack experience.',
-        price: 3500,
-        compareAtPrice: 4000,
-        stock: 100,
-        categorySlug: 'potato-chips',
-        sku: 'WK-CHI-350P',
-        weight: 350,
-        tags: ['potato chips', 'pack', 'value'],
-        slug: 'potato-chips-350g-pack',
-        images: ['https://images.unsplash.com/photo-1613967193490-1d17b930c1a1?auto=format&fit=crop&q=80&w=800'],
-    },
-    {
-        name: 'Potato Chips Sachet',
-        description: 'Convenient and pocket-friendly Wisekings potato chips sachet. The perfect on-the-go snack for any time of day.',
-        price: 2800,
-        compareAtPrice: 3000,
-        stock: 300,
-        categorySlug: 'potato-chips',
-        sku: 'WK-CHI-SAC',
-        weight: 50,
-        tags: ['potato chips', 'sachet', 'on-the-go', 'affordable'],
-        slug: 'potato-chips-sachet',
-        images: ['https://images.unsplash.com/photo-1599490659213-e2b9527bb087?auto=format&fit=crop&q=80&w=800'],
-    },
-
-    // ── Plantain Chips ────────────────────────────────────────────────────────
-    {
-        name: 'Ripe Plantain Chips 300g Jar',
-        description: 'Sweet and crunchy ripe plantain chips in a 300g jar. Made from carefully selected ripe plantains — a uniquely Nigerian snack with a premium twist.',
-        price: 4300,
-        compareAtPrice: 4800,
-        stock: 80,
-        categorySlug: 'plantain-chips',
-        sku: 'WK-PLT-300J',
-        weight: 300,
-        tags: ['plantain chips', 'jar', 'ripe', 'premium'],
-        slug: 'ripe-plantain-chips-300g-jar',
-        images: ['https://images.unsplash.com/photo-1623933939524-814d9b4dbcb4?auto=format&fit=crop&q=80&w=800'],
-        relatedSlugs: ['unripe-plantain-chips-300g-jar']
-    },
-    {
-        name: 'Ripe Plantain Chips 30g x 24pcs Per Bag',
-        description: 'A bag of 24 x 30g ripe plantain chip pouches from Wisekings. Perfect for retail distribution, bulk orders, or corporate gifting.',
+        name: 'Plantain Chips (30g)',
+        description: 'Premium quality Plantain Chips (30g). Variety: Ripe & Unripe. Packed with 24 units per carton.',
         price: 8500,
-        compareAtPrice: 10500,
-        stock: 60,
-        categorySlug: 'plantain-chips',
-        sku: 'WK-PLT-30G24',
-        weight: 720,
-        tags: ['plantain chips', 'bulk', 'retail', '24-pack'],
-        slug: 'ripe-plantain-chips-30g-x-24pcs-per-bag',
-        images: ['https://images.unsplash.com/photo-1549465220-1a8b9238cd48?q=80&w=800&auto=format&fit=crop'],
-    },
-    {
-        name: 'Ripe Plantain Chips 50g Pouch x 12pcs',
-        description: 'A carton of 12 x 50g ripe plantain chips pouches. Great value for retailers and distributors who want a consistently high-quality product.',
-        price: 10200,
-        compareAtPrice: 10800,
+        unitPrice: 354.16,
+        unitDescription: '30g',
+        quantityPerPack: 24,
+        costPricePerPack: 8500,
+        varietyType: 'Ripe & Unripe',
         stock: 50,
         categorySlug: 'plantain-chips',
-        sku: 'WK-PLT-50G12',
-        weight: 600,
-        tags: ['plantain chips', 'pouch', 'carton', '12-pack'],
-        slug: 'ripe-plantain-chips-50g-pouch-x-12pcs',
-        images: ['https://images.unsplash.com/photo-1505576391880-b3f9d713dc4f?auto=format&fit=crop&q=80&w=800'],
+        sku: 'WK-PLN-30G',
+        slug: 'plantain-chips-30g-carton',
+        weight: 0.03,
+        images: ['https://res.cloudinary.com/dn3xsj1jo/image/upload/v1773929215/products/bebux2js7cmfpluagv6r.jpg'],
+        tags: ['plantain', 'chips', 'snack']
     },
     {
-        name: 'Ripe Plantain Chips 50g Pouch x 24pcs',
-        description: 'Wisekings ripe plantain chips in convenient 50g pouches, sold as a carton of 24. Ideal for wholesale buyers or stock-up purchases.',
+        name: 'Plantain Chips (50g) - 24pcs',
+        description: 'Premium quality Plantain Chips (50g). Variety: Ripe & Unripe. Packed with 24 units per carton.',
         price: 19200,
-        compareAtPrice: 20000,
-        stock: 40,
+        unitPrice: 800,
+        unitDescription: '50g',
+        quantityPerPack: 24,
+        costPricePerPack: 19200,
+        varietyType: 'Ripe & Unripe',
+        stock: 50,
         categorySlug: 'plantain-chips',
-        sku: 'WK-PLT-50G24',
-        weight: 1200,
-        tags: ['plantain chips', 'pouch', 'wholesale', '24-pack'],
-        slug: 'ripe-plantain-chips-50g-pouch-x-24pcs',
-        images: ['https://images.unsplash.com/photo-1528975604071-b4dc52a2d18c?auto=format&fit=crop&q=80&w=800'],
+        sku: 'WK-PLN-50G-24',
+        slug: 'plantain-chips-50g-24pcs',
+        weight: 0.05,
+        images: ['https://res.cloudinary.com/dn3xsj1jo/image/upload/v1773929215/products/bebux2js7cmfpluagv6r.jpg'],
+        tags: ['plantain', 'chips', 'snack']
     },
     {
-        name: 'Ripe Plantain Chips 50g Pouch x 50pcs',
-        description: 'Our largest plantain chips bulk pack — 50 x 50g pouches per carton. Perfect for large-scale retail, supermarkets, and distributor partners.',
+        name: 'Plantain Chips (50g) - 50pcs',
+        description: 'Premium quality Plantain Chips (50g). Variety: Ripe & Unripe. Packed with 50 units per carton.',
         price: 37500,
-        compareAtPrice: 42500,
-        stock: 25,
+        unitPrice: 750,
+        unitDescription: '50g',
+        quantityPerPack: 50,
+        costPricePerPack: 37500,
+        varietyType: 'Ripe & Unripe',
+        stock: 50,
         categorySlug: 'plantain-chips',
-        sku: 'WK-PLT-50G50',
-        weight: 2500,
-        tags: ['plantain chips', 'pouch', 'bulk', 'distributor', '50-pack'],
-        slug: 'ripe-plantain-chips-50g-pouch-x-50pcs',
-        images: ['https://images.unsplash.com/photo-1534073828943-f801091bb18c?auto=format&fit=crop&q=80&w=800'],
-        relatedSlugs: ['ripe-plantain-chips-30g-x-24pcs-per-bag', 'ripe-plantain-chips-50g-pouch-x-24pcs']
+        sku: 'WK-PLN-50G-50',
+        slug: 'plantain-chips-50g-50pcs',
+        weight: 0.05,
+        images: ['https://res.cloudinary.com/dn3xsj1jo/image/upload/v1773929215/products/bebux2js7cmfpluagv6r.jpg'],
+        tags: ['plantain', 'chips', 'snack']
     },
     {
-        name: 'Unripe Plantain Chips 300g Jar',
-        description: 'Savory and crispy unripe plantain chips. A healthy, low-sugar alternative to our ripe chips, packed with the same Wisekings quality.',
-        price: 4300,
-        compareAtPrice: 4800,
-        stock: 80,
+        name: 'Plantain Chips (80g) - 24pcs',
+        description: 'Premium quality Plantain Chips (80g). Variety: Ripe & Unripe. Packed with 24 units per carton.',
+        price: 31200,
+        unitPrice: 1300,
+        unitDescription: '80g',
+        quantityPerPack: 24,
+        costPricePerPack: 31200,
+        varietyType: 'Ripe & Unripe',
+        stock: 50,
         categorySlug: 'plantain-chips',
-        sku: 'WK-PLT-U300J',
-        weight: 300,
-        tags: ['plantain chips', 'jar', 'unripe', 'savory'],
-        slug: 'unripe-plantain-chips-300g-jar',
-        images: ['https://images.unsplash.com/photo-1596461404969-9ae70f2830c1?auto=format&fit=crop&q=80&w=800'],
-        relatedSlugs: ['ripe-plantain-chips-300g-jar']
+        sku: 'WK-PLN-80G-24',
+        slug: 'plantain-chips-80g-24pcs',
+        weight: 0.08,
+        images: ['https://res.cloudinary.com/dn3xsj1jo/image/upload/v1773929215/products/bebux2js7cmfpluagv6r.jpg'],
+        tags: ['plantain', 'chips', 'snack']
     },
+    {
+        name: 'Plantain Chips (80g) - 50pcs',
+        description: 'Premium quality Plantain Chips (80g). Variety: Ripe & Unripe. Packed with 50 units per carton.',
+        price: 62500,
+        unitPrice: 1250,
+        unitDescription: '80g',
+        quantityPerPack: 50,
+        costPricePerPack: 62500,
+        varietyType: 'Ripe & Unripe',
+        stock: 50,
+        categorySlug: 'plantain-chips',
+        sku: 'WK-PLN-80G-50',
+        slug: 'plantain-chips-80g-50pcs',
+        weight: 0.08,
+        images: ['https://res.cloudinary.com/dn3xsj1jo/image/upload/v1773929215/products/bebux2js7cmfpluagv6r.jpg'],
+        tags: ['plantain', 'chips', 'snack']
+    },
+    {
+        name: 'Plantain Chips (300g Jar)',
+        description: 'Premium quality Plantain Chips (300g). Variety: Ripe & Unripe. Packed with 12 units per carton.',
+        price: 54000,
+        unitPrice: 4500,
+        unitDescription: '300g Jar',
+        quantityPerPack: 12,
+        costPricePerPack: 54000,
+        varietyType: 'Ripe & Unripe',
+        stock: 50,
+        categorySlug: 'plantain-chips',
+        sku: 'WK-PLN-300J',
+        slug: 'plantain-chips-300g-jar',
+        weight: 0.3,
+        images: ['https://res.cloudinary.com/dn3xsj1jo/image/upload/v1773929215/products/bebux2js7cmfpluagv6r.jpg'],
+        tags: ['plantain', 'chips', 'snack']
+    },
+    {
+        name: 'Plantain Chips (520g Jar)',
+        description: 'Premium quality Plantain Chips (520g). Variety: Ripe & Unripe. Packed with 12 units per carton.',
+        price: 90000,
+        unitPrice: 7500,
+        unitDescription: '520g Jar',
+        quantityPerPack: 12,
+        costPricePerPack: 90000,
+        varietyType: 'Ripe & Unripe',
+        stock: 50,
+        categorySlug: 'plantain-chips',
+        sku: 'WK-PLN-520J',
+        slug: 'plantain-chips-520g-jar',
+        weight: 0.52,
+        images: ['https://res.cloudinary.com/dn3xsj1jo/image/upload/v1773929215/products/bebux2js7cmfpluagv6r.jpg'],
+        tags: ['plantain', 'chips', 'snack']
+    },
+    {
+        name: 'Plantain Chips (650g Jar)',
+        description: 'Premium quality Plantain Chips (650g). Variety: Ripe & Unripe. Packed with 12 units per carton.',
+        price: 102000,
+        unitPrice: 8500,
+        unitDescription: '650g Jar',
+        quantityPerPack: 12,
+        costPricePerPack: 102000,
+        varietyType: 'Ripe & Unripe',
+        stock: 50,
+        categorySlug: 'plantain-chips',
+        sku: 'WK-PLN-650J',
+        slug: 'plantain-chips-650g-jar',
+        weight: 0.65,
+        images: ['https://res.cloudinary.com/dn3xsj1jo/image/upload/v1773929215/products/bebux2js7cmfpluagv6r.jpg'],
+        tags: ['plantain', 'chips', 'snack']
+    },
+    // Potato Chips
+    {
+        name: 'Potato Chips (20g)',
+        description: 'Premium quality Potato Chips (20g). Variety: Peppered. Packed with 30 units per carton.',
+        price: 2800,
+        unitPrice: 93.33,
+        unitDescription: '20g',
+        quantityPerPack: 30,
+        costPricePerPack: 2800,
+        varietyType: 'Peppered',
+        stock: 50,
+        categorySlug: 'potato-chips',
+        sku: 'WK-POT-20G',
+        slug: 'potato-chips-20g-carton',
+        weight: 0.02,
+        images: ['https://res.cloudinary.com/dn3xsj1jo/image/upload/v1773929215/products/bebux2js7cmfpluagv6r.jpg'],
+        tags: ['potato', 'chips', 'snack']
+    },
+    {
+        name: 'Potato Chips (50g) - 24pcs',
+        description: 'Premium quality Potato Chips (50g). Variety: Peppered. Packed with 24 units per carton.',
+        price: 19200,
+        unitPrice: 800,
+        unitDescription: '50g',
+        quantityPerPack: 24,
+        costPricePerPack: 19200,
+        varietyType: 'Peppered',
+        stock: 50,
+        categorySlug: 'potato-chips',
+        sku: 'WK-POT-50G-24',
+        slug: 'potato-chips-50g-24pcs',
+        weight: 0.05,
+        images: ['https://res.cloudinary.com/dn3xsj1jo/image/upload/v1773929215/products/bebux2js7cmfpluagv6r.jpg'],
+        tags: ['potato', 'chips', 'snack']
+    },
+    {
+        name: 'Potato Chips (50g) - 50pcs',
+        description: 'Premium quality Potato Chips (50g). Variety: Peppered. Packed with 50 units per carton.',
+        price: 37500,
+        unitPrice: 750,
+        unitDescription: '50g',
+        quantityPerPack: 50,
+        costPricePerPack: 37500,
+        varietyType: 'Peppered',
+        stock: 50,
+        categorySlug: 'potato-chips',
+        sku: 'WK-POT-50G-50',
+        slug: 'potato-chips-50g-50pcs',
+        weight: 0.05,
+        images: ['https://res.cloudinary.com/dn3xsj1jo/image/upload/v1773929215/products/bebux2js7cmfpluagv6r.jpg'],
+        tags: ['potato', 'chips', 'snack']
+    },
+    {
+        name: 'Potato Chips (220g Jar)',
+        description: 'Premium quality Potato Chips (220g). Variety: Peppered. Packed with 12 units per carton.',
+        price: 36000,
+        unitPrice: 3000,
+        unitDescription: '220g Jar',
+        quantityPerPack: 12,
+        costPricePerPack: 36000,
+        varietyType: 'Peppered',
+        stock: 50,
+        categorySlug: 'potato-chips',
+        sku: 'WK-POT-220J',
+        slug: 'potato-chips-220g-jar',
+        weight: 0.22,
+        images: ['https://res.cloudinary.com/dn3xsj1jo/image/upload/v1773929215/products/bebux2js7cmfpluagv6r.jpg'],
+        tags: ['potato', 'chips', 'snack']
+    },
+    {
+        name: 'Potato Chips (350g Jar)',
+        description: 'Premium quality Potato Chips (350g). Variety: Peppered. Packed with 12 units per carton.',
+        price: 42000,
+        unitPrice: 3500,
+        unitDescription: '350g Jar',
+        quantityPerPack: 12,
+        costPricePerPack: 42000,
+        varietyType: 'Peppered',
+        stock: 50,
+        categorySlug: 'potato-chips',
+        sku: 'WK-POT-350J',
+        slug: 'potato-chips-350g-jar',
+        weight: 0.35,
+        images: ['https://res.cloudinary.com/dn3xsj1jo/image/upload/v1773929215/products/bebux2js7cmfpluagv6r.jpg'],
+        tags: ['potato', 'chips', 'snack']
+    }
 ];
 
 // ── Seed Function ─────────────────────────────────────────────────────────────
@@ -238,28 +346,9 @@ async function seedSnacks() {
                 continue;
             }
 
-            const { categorySlug, relatedSlugs, ...productPayload } = prodData as any;
+            const { categorySlug, ...productPayload } = prodData as any;
             await (Product as any).create({ ...productPayload, category: category._id });
             console.log(`   ✔  ${productPayload.name}  (₦${productPayload.price.toLocaleString()})`);
-        }
-
-        // Second pass to link related products
-        console.log('\n🔗  Linking related products...');
-        const allProducts = await (Product as any).find({});
-        for (const prodData of products as any) {
-            if (prodData.relatedSlugs && prodData.relatedSlugs.length > 0) {
-                const targetProduct = allProducts.find((p: any) => p.slug === prodData.slug);
-                const relatedIds = prodData.relatedSlugs
-                    .map((slug: string) => allProducts.find((p: any) => p.slug === slug)?._id)
-                    .filter(Boolean);
-                
-                if (targetProduct && relatedIds.length > 0) {
-                    await (Product as any).findByIdAndUpdate(targetProduct._id, {
-                        $set: { relatedProducts: relatedIds }
-                    });
-                    console.log(`   ✔  Linked ${relatedIds.length} products to ${prodData.name}`);
-                }
-            }
         }
 
         console.log('\n🎉  Seeding completed successfully!');

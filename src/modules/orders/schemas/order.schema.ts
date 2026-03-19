@@ -81,6 +81,9 @@ export class Order {
     @Prop({ type: Types.ObjectId, ref: 'Merchant', default: null })
     merchantId: Types.ObjectId;
 
+    @Prop({ type: Types.ObjectId, ref: 'User', default: null })
+    facilityMerchantId: Types.ObjectId;
+
     @Prop({ type: Types.ObjectId, ref: 'Partner', default: null })
     partnerId: Types.ObjectId;
 
@@ -91,6 +94,7 @@ export class Order {
     shippingAddress: {
         fullName: string;
         phone: string;
+        alternativePhone?: string;
         address: string;
         city: string;
         state: string;
@@ -135,6 +139,9 @@ export class Order {
         flaggedReasons: string[];
         isAnomaly: boolean;
     };
+
+    @Prop()
+    invoiceGeneratedAt: Date;
 }
 
 export const OrderSchema = SchemaFactory.createForClass(Order);

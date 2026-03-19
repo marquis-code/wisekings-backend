@@ -12,6 +12,9 @@ export class Commission {
     @Prop({ type: Types.ObjectId, ref: 'Merchant' })
     merchantId: Types.ObjectId;
 
+    @Prop({ type: Types.ObjectId, ref: 'User' })
+    facilityMerchantId: Types.ObjectId;
+
     @Prop({ type: Types.ObjectId, ref: 'Partner' })
     partnerId: Types.ObjectId;
 
