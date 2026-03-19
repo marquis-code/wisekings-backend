@@ -48,7 +48,6 @@ export class ProductsService {
         const { page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc', search } = paginationDto;
         const skip = ((page as any) - 1) * (limit as any);
 
-        const skip = ((page as any) - 1) * (limit as any);
 
         const filter: any = {};
         if (search) {
