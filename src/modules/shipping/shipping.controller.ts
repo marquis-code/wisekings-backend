@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Query, UseGuards, Header } from '@nestjs/common';
 import { ShippingService } from './shipping.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -24,6 +24,7 @@ export class ShippingController {
 
     @Public()
     @Get('calculate')
+    @Header('Cache-Control', 'no-cache, no-store, must-revalidate')
     calculateFee(
         @Query('lat') lat: number,
         @Query('lng') lng: number,
@@ -45,6 +46,7 @@ export class ShippingController {
 
     @Public()
     @Get('calculate-public')
+    @Header('Cache-Control', 'no-cache, no-store, must-revalidate')
     calculateFeePublic(
         @Query('lat') lat: number,
         @Query('lng') lng: number,

@@ -41,6 +41,9 @@ export class Product {
     @Prop()
     varietyType: string; // e.g. "Mini Pack", "Ripe & Unripe"
 
+    @Prop({ default: false })
+    sellPerUnit: boolean;
+
     @Prop({ default: true })
     isActive: boolean;
 

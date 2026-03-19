@@ -81,6 +81,10 @@ export class CreateProductDto {
     @IsString()
     @IsOptional()
     varietyType?: string;
+
+    @IsBoolean()
+    @IsOptional()
+    sellPerUnit?: boolean;
 }
 
 export class UpdateProductDto {
@@ -164,6 +168,10 @@ export class UpdateProductDto {
     @IsString()
     @IsOptional()
     varietyType?: string;
+
+    @IsBoolean()
+    @IsOptional()
+    sellPerUnit?: boolean;
 
     @IsOptional()
     _id?: any;

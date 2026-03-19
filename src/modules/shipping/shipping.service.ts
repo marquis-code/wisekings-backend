@@ -23,13 +23,13 @@ export class ShippingService {
     async getConfig() {
         let config = await this.configModel.findOne({ isActive: true });
         if (!config) {
-            // Create a default if none exists (Lagos, Nigeria example)
+            // Create a default if none exists (Prompt admin to set it)
             config = await this.configModel.create({
-                warehouseAddress: '20, Admiralty Way, Lekki Phase 1, Lagos',
-                warehouseLat: 6.4478,
-                warehouseLng: 3.4735,
-                baseFee: 1000,
-                pricePerKm: 200,
+                warehouseAddress: 'Please set warehouse address in Admin',
+                warehouseLat: 0,
+                warehouseLng: 0,
+                baseFee: 0,
+                pricePerKm: 0,
                 pricingTiers: []
             });
         }
