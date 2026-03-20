@@ -109,7 +109,7 @@ export class ShippingService {
             return {
                 distanceKm: 0,
                 distanceMeters: 0,
-                fee: config.waybillFee || 3500,
+                fee: config.waybillFee ?? 0,
                 baseFee: config.baseFee,
                 pricePerKm: config.pricePerKm,
                 method: 'waybill'
