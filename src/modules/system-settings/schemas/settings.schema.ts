@@ -107,8 +107,8 @@ export class SystemSettings {
       isActive: { type: Boolean, default: true }
     }],
     default: [
-      { name: 'Company Depot', address: '20, Olorunfunmi street behind philips factory ojota', phone: '', isActive: false },
-      { name: 'Factory Address', address: '13, Sonubi street, off Bakare street ketu, Lagos', phone: '', isActive: true }
+      { name: 'Company Depot', address: '20, Olorunfunmi street behind philips factory ojota', phone: '+234 802 322 5019', isActive: false },
+      { name: 'Factory Address', address: '13, Sonubi street, off Bakare street ketu, Lagos', phone: '+234 802 322 5019', isActive: true }
     ]
   })
   pickupLocations: {

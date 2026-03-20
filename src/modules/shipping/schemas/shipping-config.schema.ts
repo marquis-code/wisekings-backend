@@ -41,7 +41,7 @@ export class ShippingConfig {
     @Prop({ required: true, default: 0 })
     pricePerKm: number;
 
-    @Prop({ required: true, default: 2500 })
+    @Prop({ required: true, default: 0 })
     waybillFee: number;
 
     @Prop({ required: false })
