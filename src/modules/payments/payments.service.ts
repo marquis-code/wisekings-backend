@@ -4,6 +4,7 @@ import axios from 'axios';
 import Stripe from 'stripe';
 import * as crypto from 'crypto';
 import { OrdersService } from '../orders/orders.service';
+import { MailService } from '../mail/mail.service';
 import { PaymentStatus } from '@common/constants';
 
 @Injectable()
@@ -19,6 +20,7 @@ export class PaymentsService {
     constructor(
         private configService: ConfigService,
         private ordersService: OrdersService,
+        private mailService: MailService,
     ) {
         this.stripe = new Stripe(this.configService.get<string>('stripe.secretKey') || '', {
             apiVersion: '2023-10-16' as any,
@@ -117,6 +119,8 @@ export class PaymentsService {
         if (event === 'charge.success') {
             const orderId = payload.data.metadata?.orderId || payload.data.metadata?.custom_fields?.find((f: any) => f.variable_name === 'orderId')?.value;
             const reference = payload.data.reference;
+            const customerEmail = payload.data.customer?.email || payload.data.metadata?.email;
+            const amount = payload.data.amount / 100;
 
             if (orderId) {
                 this.logger.log(`Confirming payment for Order ${orderId} (Ref: ${reference})`);
@@ -126,6 +130,38 @@ export class PaymentsService {
                     reference,
                     'paystack',
                 );
+
+                try {
+                    const order = await this.ordersService.findById(orderId) as any;
+                    
+                    const customerHtml = this.mailService.brandWrapper(
+                        'Payment Received',
+                        `<p>Hi ${order.shippingAddress?.fullName || 'Valued Customer'},</p>
+                        <p>We are thrilled to confirm that your payment for order <strong>#${order.orderNumber}</strong> was successful.</p>
+                        <p>Total Paid: <strong>₦${amount.toLocaleString()}</strong></p>
+                        <p>Our dispatch team is currently processing your items and will reach out with the tracking or delivery timeline shortly.</p>
+                        <p>Thank you for choosing WiseKings!</p>`
+                    );
+                    const emailTo = customerEmail || order.shippingAddress?.email || order.customerId?.email;
+                    if (emailTo) {
+                        await this.mailService.sendEmail(emailTo, 'Payment Receipt - Order #' + order.orderNumber, customerHtml);
+                    }
+
+                    const adminHtml = this.mailService.brandWrapper(
+                        'New Order Payment Confirmed',
+                        `<p>A new Paystack payment has been successfully captured.</p>
+                         <p>Order Number: <strong>${order.orderNumber}</strong></p>
+                         <p>Amount Paid: <strong>₦${amount.toLocaleString()}</strong></p>
+                         <p>Customer Name: ${order.shippingAddress?.fullName}</p>
+                         <p>Customer Phone: ${order.shippingAddress?.phone}</p>
+                         <div class="action-area">
+                           <a href="${this.configService.get('ADMIN_URL') || 'https://admin.wisekings.ng'}/orders" class="btn">View Order Dashboard</a>
+                         </div>`
+                    );
+                    await this.mailService.sendEmail('wisekingssnack@gmail.com', '🚨 Payment Received alert - Order #' + order.orderNumber, adminHtml);
+                } catch (e) {
+                    this.logger.error('Failed to dispatch Paystack email receipts: ' + e.message);
+                }
             } else {
                 this.logger.warn(`Paystack webhook received but no orderId found in metadata. Reference: ${reference}`);
             }

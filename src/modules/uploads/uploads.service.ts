@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { v2 as cloudinary, UploadApiResponse, UploadApiErrorResponse } from 'cloudinary';
 import { Buffer } from 'buffer';
+import * as sharp from 'sharp';
 
 @Injectable()
 export class UploadsService {
@@ -16,26 +17,47 @@ export class UploadsService {
     }
 
     async uploadFile(file: Express.Multer.File, folder = 'general'): Promise<string> {
-        return new Promise((resolve, reject) => {
-            const uploadStream = cloudinary.uploader.upload_stream(
-                {
-                    folder: folder,
-                    resource_type: 'auto',
-                },
-                (error: UploadApiErrorResponse, result: UploadApiResponse) => {
-                    if (error) {
-                        this.logger.error(`Error uploading file to Cloudinary: ${error.message}`);
-                        return reject(error);
-                    }
-                    resolve(result.secure_url);
-                },
-            );
+        return new Promise(async (resolve, reject) => {
+            try {
+                let fileBuffer = file.buffer;
+                let resourceType = 'auto';
 
-            // Create a buffer stream and pipe it to Cloudinary
-            const stream = require('stream');
-            const bufferStream = new stream.PassThrough();
-            bufferStream.end(file.buffer);
-            bufferStream.pipe(uploadStream);
+                // Aggressively optimize images to WebP format
+                const isImageToOptimize = file.mimetype.startsWith('image/') && 
+                                          file.mimetype !== 'image/svg+xml' && 
+                                          file.mimetype !== 'image/gif';
+
+                if (isImageToOptimize) {
+                    fileBuffer = await sharp(file.buffer)
+                        .webp({ quality: 80, effort: 6 })
+                        .toBuffer();
+                    resourceType = 'image';
+                }
+
+                const uploadStream = cloudinary.uploader.upload_stream(
+                    {
+                        folder: folder,
+                        resource_type: resourceType as any,
+                        format: isImageToOptimize ? 'webp' : undefined,
+                    },
+                    (error: UploadApiErrorResponse, result: UploadApiResponse) => {
+                        if (error) {
+                            this.logger.error(`Error uploading file to Cloudinary: ${error.message}`);
+                            return reject(error);
+                        }
+                        resolve(result.secure_url);
+                    },
+                );
+
+                // Create a buffer stream and pipe it to Cloudinary
+                const stream = require('stream');
+                const bufferStream = new stream.PassThrough();
+                bufferStream.end(fileBuffer);
+                bufferStream.pipe(uploadStream);
+            } catch (error) {
+                this.logger.error(`Error optimizing or uploading file: ${error.message}`);
+                reject(error);
+            }
         });
     }
 
