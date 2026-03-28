@@ -43,7 +43,6 @@ import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 
 @Module({
     imports: [
-        // Configuration
         ConfigModule.forRoot({
             isGlobal: true,
             load: [configuration],
@@ -90,7 +89,6 @@ import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
         }),
         ScheduleModule.forRoot(),
 
-        // Database
         MongooseModule.forRootAsync({
             imports: [ConfigModule],
             useFactory: (configService: ConfigService) => ({
@@ -101,7 +99,6 @@ import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
         MailModule,
         WebsocketsModule,
 
-        // Rate Limiting
         ThrottlerModule.forRootAsync({
             imports: [ConfigModule],
             inject: [ConfigService],
@@ -112,8 +109,6 @@ import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
                 },
             ],
         }),
-
-        // Feature Modules
         AuthModule,
         UsersModule,
         RolesModule,
