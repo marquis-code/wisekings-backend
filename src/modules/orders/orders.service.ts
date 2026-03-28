@@ -1,9 +1,10 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
+import * as bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
 import { Order, OrderDocument } from './schemas/order.schema';
-import { OrderStatus, PaymentStatus, PaymentProvider } from '@common/constants';
+import { OrderStatus, PaymentStatus, PaymentProvider, UserType } from '@common/constants';
 import { PaginationDto, PaginatedResult } from '@common/dto';
 import { CommissionsService } from '../commissions/commissions.service';
 import { ShippingService } from '../shipping/shipping.service';
@@ -19,7 +20,32 @@ export class OrdersService {
         private shippingService: ShippingService,
     ) { }
 
-    async create(dto: any, customerId: string) {
+    async create(dto: any, customerId?: string) {
+        let finalCustomerId = customerId;
+
+        // Guest Checkout Handling
+        if (!finalCustomerId) {
+            const guestEmail = dto.shippingAddress?.email;
+            if (!guestEmail) throw new BadRequestException('Email is required for guest checkout');
+
+            let user = await this.userModel.findOne({ email: guestEmail.toLowerCase() });
+            if (!user) {
+                // Create a placeholder user for the guest
+                const tempPassword = await bcrypt.hash(Math.random().toString(36), 12);
+                user = await this.userModel.create({
+                    email: guestEmail.toLowerCase(),
+                    fullName: dto.shippingAddress?.fullName || 'Guest User',
+                    phone: dto.shippingAddress?.phone || '',
+                    userType: UserType.CUSTOMER,
+                    password: tempPassword,
+                    isEmailVerified: false,
+                    isActive: true,
+                });
+                this.logger.log(`Created new guest user account for email: ${guestEmail}`);
+            }
+            finalCustomerId = user._id.toString();
+        }
+
         const orderNumber = `WK-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
         // Calculate total weight
@@ -59,8 +85,8 @@ export class OrdersService {
 
         // Handle point redemption
         let finalAmount = dto.totalAmount + shippingFee;
-        if (dto.redeemPoints && dto.pointsToRedeem > 0) {
-            const user = await this.userModel.findById(customerId);
+        if (dto.redeemPoints && dto.pointsToRedeem > 0 && finalCustomerId) {
+            const user = await this.userModel.findById(finalCustomerId);
             if (user && user.points >= dto.pointsToRedeem) {
                 const discount = dto.pointsToRedeem;
                 finalAmount = Math.max(0, finalAmount - discount);
@@ -76,7 +102,7 @@ export class OrdersService {
             shippingDetails,
             totalAmount: finalAmount,
             orderNumber,
-            customerId: new Types.ObjectId(customerId),
+            customerId: new Types.ObjectId(finalCustomerId),
             status: OrderStatus.PENDING,
             paymentStatus: PaymentStatus.PENDING,
         });

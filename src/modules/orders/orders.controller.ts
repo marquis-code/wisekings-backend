@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Patch, Put, Param, Body, Query, UseGuards } from '@nestjs/common';
 import { OrdersService } from './orders.service';
-import { Roles, CurrentUser } from '../../common/decorators';
+import { Roles, CurrentUser, Public } from '../../common/decorators';
 import { RolesGuard } from '../../common/guards';
 import { PaginationDto } from '../../common/dto';
 import { OrderStatus, PaymentStatus } from '@common/constants';
@@ -9,8 +9,9 @@ import { OrderStatus, PaymentStatus } from '@common/constants';
 export class OrdersController {
     constructor(private readonly ordersService: OrdersService) { }
 
+    @Public()
     @Post()
-    async create(@Body() dto: any, @CurrentUser('_id') userId: string) {
+    async create(@Body() dto: any, @CurrentUser('_id') userId?: string) {
         return this.ordersService.create(dto, userId);
     }
 
