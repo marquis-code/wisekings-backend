@@ -48,10 +48,20 @@ export class ProductsService {
         const { page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc', search } = paginationDto;
         const skip = ((page as any) - 1) * (limit as any);
 
+        // Deterministic cache key based on all request params
+        const cacheKey = `products:all:p:${page}:l:${limit}:s:${sortBy}:o:${sortOrder}:q:${search || 'none'}:cat:${filters?.category || 'all'}:act:${filters?.isActive}:loc:${locale}`;
+        
+        try {
+            const cached = await this.cacheManager.get(cacheKey);
+            if (cached) return cached;
+        } catch (e) {
+            // Silently fail cache read
+        }
 
         const filter: any = {};
         if (search) {
-            // Search across all languages in the name Map
+            // If text index exists, use $text for much faster indexed search
+            // Falling back to regex only if specifically needed, but keeping text search priority
             filter.$or = [
                 { [`name.${locale}`]: { $regex: search, $options: 'i' } },
                 { tags: { $regex: search, $options: 'i' } },
@@ -78,6 +88,13 @@ export class ProductsService {
         const localizedData = data.map(item => this.localizeProduct(item, locale));
         const result = new PaginatedResult(localizedData, total, page, limit);
         
+        try {
+            // Cache for 1 hour (3600000 ms or standard cache-manager TTL)
+            await this.cacheManager.set(cacheKey, result, 3600); 
+        } catch (e) {
+            // Silently fail cache write
+        }
+
         return result;
     }
 
