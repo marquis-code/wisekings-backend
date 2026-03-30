@@ -36,7 +36,7 @@ export class PaymentsService {
 
         try {
             const order = await this.ordersService.findById(orderId);
-            const country = order.shippingAddress?.country;
+            const country = order.recipientDetails?.country || order.orderingCustomer?.country;
 
             if (country && this.africanCountries.some(c => country.toLowerCase().includes(c.toLowerCase()))) {
                 routeToPaystack = true;
@@ -136,27 +136,31 @@ export class PaymentsService {
                     
                     const customerHtml = this.mailService.brandWrapper(
                         'Payment Received',
-                        `<p>Hi ${order.shippingAddress?.fullName || 'Valued Customer'},</p>
+                        `
+                        <p>Hi ${order.orderingCustomer?.firstName || "Valued Customer"},</p>
                         <p>We are thrilled to confirm that your payment for order <strong>#${order.orderNumber}</strong> was successful.</p>
                         <p>Total Paid: <strong>₦${amount.toLocaleString()}</strong></p>
                         <p>Our dispatch team is currently processing your items and will reach out with the tracking or delivery timeline shortly.</p>
-                        <p>Thank you for choosing WiseKings!</p>`
+                        <p>Thank you for choosing WiseKings!</p>
+                        `
                     );
-                    const emailTo = customerEmail || order.shippingAddress?.email || order.customerId?.email;
+                    const emailTo = customerEmail || order.orderingCustomer?.email || order.customerId?.email;
                     if (emailTo) {
                         await this.mailService.sendEmail(emailTo, 'Payment Receipt - Order #' + order.orderNumber, customerHtml);
                     }
 
                     const adminHtml = this.mailService.brandWrapper(
                         'New Order Payment Confirmed',
-                        `<p>A new Paystack payment has been successfully captured.</p>
+                         `
+                         <p>A new Paystack payment has been successfully captured.</p>
                          <p>Order Number: <strong>${order.orderNumber}</strong></p>
                          <p>Amount Paid: <strong>₦${amount.toLocaleString()}</strong></p>
-                         <p>Customer Name: ${order.shippingAddress?.fullName}</p>
-                         <p>Customer Phone: ${order.shippingAddress?.phone}</p>
+                         <p>Customer Name: ${order.orderingCustomer?.firstName} ${order.orderingCustomer?.surname}</p>
+                         <p>Customer Phone: ${order.orderingCustomer?.whatsapp}</p>
                          <div class="action-area">
                            <a href="${this.configService.get('ADMIN_URL') || 'https://admin.wisekings.ng'}/orders" class="btn">View Order Dashboard</a>
-                         </div>`
+                         </div>
+                         `
                     );
                     await this.mailService.sendEmail('wisekingssnack@gmail.com', '🚨 Payment Received alert - Order #' + order.orderNumber, adminHtml);
                 } catch (e) {

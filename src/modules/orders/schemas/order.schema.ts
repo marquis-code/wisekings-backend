@@ -91,15 +91,26 @@ export class Order {
     referralCode: string;
 
     @Prop({ type: Object })
-    shippingAddress: {
-        fullName: string;
-        phone: string;
-        alternativePhone?: string;
+    recipientDetails: {
+        firstName: string;
         address: string;
+        whatsapp: string;
+        alternativePhone?: string;
+        email?: string;
         city: string;
-        state: string;
         country: string;
-        zipCode: string;
+    };
+
+    @Prop({ type: Object })
+    orderingCustomer: {
+        firstName: string;
+        surname: string;
+        address: string;
+        whatsapp: string;
+        alternativePhone?: string;
+        email: string;
+        city: string;
+        country: string;
     };
 
     @Prop()

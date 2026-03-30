@@ -25,7 +25,7 @@ export class OrdersService {
 
         // Guest Checkout Handling
         if (!finalCustomerId) {
-            const guestEmail = dto.shippingAddress?.email;
+            const guestEmail = dto.orderingCustomer?.email;
             if (!guestEmail) throw new BadRequestException('Email is required for guest checkout');
 
             let user = await this.userModel.findOne({ email: guestEmail.toLowerCase() });
@@ -34,8 +34,8 @@ export class OrdersService {
                 const tempPassword = await bcrypt.hash(Math.random().toString(36), 12);
                 user = await this.userModel.create({
                     email: guestEmail.toLowerCase(),
-                    fullName: dto.shippingAddress?.fullName || 'Guest User',
-                    phone: dto.shippingAddress?.phone || '',
+                    fullName: `${dto.orderingCustomer?.firstName || ''} ${dto.orderingCustomer?.surname || ''}`.trim() || 'Guest User',
+                    phone: dto.orderingCustomer?.whatsapp || '',
                     userType: UserType.CUSTOMER,
                     password: tempPassword,
                     isEmailVerified: false,
@@ -55,7 +55,7 @@ export class OrdersService {
         let shippingDetails = null;
 
         if (dto.deliveryMethod !== 'pickup') {
-            const country = dto.shippingAddress?.country || 'Nigeria';
+            const country = dto.recipientDetails?.country || 'Nigeria';
             const isHomeDelivery = dto.isHomeDelivery || false;
 
             const result = await this.shippingService.calculateDeliveryFee(
