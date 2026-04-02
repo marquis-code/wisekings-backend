@@ -32,6 +32,13 @@ export class OrdersController {
     @UseGuards(RolesGuard)
     async getStats() { return this.ordersService.getStats(); }
 
+    @Get('staff-leaderboard')
+    @Roles('superadmin', 'admin', 'finance', 'staff')
+    @UseGuards(RolesGuard)
+    async getStaffLeaderboard() {
+        return this.ordersService.getStaffLeaderboard();
+    }
+
     @Get(':id')
     async findById(@Param('id') id: string) { return this.ordersService.findById(id); }
 
@@ -62,5 +69,12 @@ export class OrdersController {
     @UseGuards(RolesGuard)
     async verifyPaymentProof(@Param('id') id: string, @Body('status') status: 'verified' | 'rejected') {
         return this.ordersService.verifyPaymentProof(id, status);
+    }
+
+    @Post('claim-invoice')
+    @Roles('superadmin', 'admin', 'coordinator') // WSSP coordinators might have this role
+    @UseGuards(RolesGuard)
+    async claimInvoice(@CurrentUser('_id') coordinatorId: string, @Body('orderNumber') orderNumber: string) {
+        return this.ordersService.claimInvoice(coordinatorId, orderNumber);
     }
 }

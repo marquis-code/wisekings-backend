@@ -59,6 +59,13 @@ export class WalletsController {
         return this.walletsService.markAsPaid(id, reference);
     }
 
+    @Get('export/staff-salary')
+    @Roles('superadmin', 'admin', 'finance')
+    @UseGuards(RolesGuard)
+    async exportStaffSalaryData() {
+        return this.walletsService.exportStaffSalaryData();
+    }
+
     @Post('fund')
     async requestFunding(
         @CurrentUser('_id') userId: string,

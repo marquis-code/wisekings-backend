@@ -25,6 +25,18 @@ export class User {
     @Prop({ type: String, default: 'user' })
     role: string;
 
+    @Prop({ default: false })
+    isStaff: boolean;
+
+    @Prop({ default: false })
+    isCoordinator: boolean;
+
+    @Prop({ trim: true })
+    staffCode: string;
+
+    @Prop({ type: Types.ObjectId, ref: 'Merchant' })
+    merchantId: Types.ObjectId;
+
     @Prop({ default: true })
     isActive: boolean;
 

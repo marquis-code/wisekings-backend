@@ -90,6 +90,12 @@ export class Order {
     @Prop()
     referralCode: string;
 
+    @Prop()
+    staffCode: string;
+
+    @Prop({ type: Types.ObjectId, ref: 'User', default: null })
+    wsspCoordinatorId: Types.ObjectId;
+
     @Prop({ type: Object })
     recipientDetails: {
         firstName: string;

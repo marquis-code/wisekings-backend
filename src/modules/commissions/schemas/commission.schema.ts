@@ -18,6 +18,15 @@ export class Commission {
     @Prop({ type: Types.ObjectId, ref: 'Partner' })
     partnerId: Types.ObjectId;
 
+    @Prop({ type: Types.ObjectId, ref: 'User' })
+    userId: Types.ObjectId;
+
+    @Prop()
+    staffCode: string;
+
+    @Prop()
+    notes: string;
+
     @Prop({ required: true, min: 0 })
     orderValue: number;
 

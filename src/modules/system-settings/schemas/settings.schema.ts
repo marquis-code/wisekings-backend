@@ -69,6 +69,9 @@ export class SystemSettings {
   @Prop({ default: 10000 })
   minWithdrawal: number;
 
+  @Prop({ default: 3 })
+  staffCommissionRate: number;
+
   @Prop({ default: 30 })
   referralCookieLife: number;
 

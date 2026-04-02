@@ -105,7 +105,21 @@ export class OrdersService {
             customerId: new Types.ObjectId(finalCustomerId),
             status: OrderStatus.PENDING,
             paymentStatus: PaymentStatus.PENDING,
+            staffCode: dto.staffCode || undefined,
+            wsspCoordinatorId: undefined, // Setup by auto-assignment or manual claim later
+            invoiceGeneratedAt: new Date()
         });
+        
+        // Auto-assign WSSP Coordinator if a merchantId exists and a user is a coordinator for this merchant
+        if (order.merchantId) {
+            const coordinator = await this.userModel.findOne({ isCoordinator: true, merchantId: order.merchantId });
+            if (coordinator) {
+                order.wsspCoordinatorId = coordinator._id;
+                await order.save();
+                this.logger.log(`Auto-assigned order ${order.orderNumber} to coordinator ${coordinator._id}`);
+            }
+        }
+        
         return { message: 'Order created', data: order };
     }
 
@@ -184,14 +198,25 @@ export class OrdersService {
                 this.logger.log(`User ${order.customerId} earned ${pointsEarned} loyalty points for Order ${order._id}`);
             }
 
-            // Trigger commission calculation if referral
-            if (order.paymentStatus === PaymentStatus.PAID && (order.merchantId || order.partnerId)) {
-                await this.commissionsService.calculateCommission(
-                    order._id.toString(),
-                    order.totalAmount,
-                    order.merchantId?.toString(),
-                    order.partnerId?.toString(),
-                );
+            if (order.paymentStatus === PaymentStatus.PAID) {
+                // Partner/Merchant Referrals
+                if (order.merchantId || order.partnerId) {
+                    await this.commissionsService.calculateCommission(
+                        order._id.toString(),
+                        order.totalAmount,
+                        order.merchantId?.toString(),
+                        order.partnerId?.toString(),
+                    );
+                }
+                
+                // Trigger Staff Commission Logic
+                if (order.staffCode) {
+                    await this.commissionsService.calculateStaffCommission(
+                        order._id.toString(),
+                        order.totalAmount,
+                        order.staffCode
+                    );
+                }
             }
         }
 
@@ -234,6 +259,21 @@ export class OrdersService {
                     order.merchantId?.toString(), order.partnerId?.toString(),
                 );
             }
+            if (order.staffCode) {
+                await this.commissionsService.calculateStaffCommission(
+                    order._id.toString(), order.totalAmount, order.staffCode
+                );
+            }
+        }
+
+        // WSSP Commission Execution on Payment Confirmed
+        if (paymentStatus === PaymentStatus.PAID && order.merchantId && order.wsspCoordinatorId) {
+            await this.commissionsService.calculateWsspCommission(
+                order._id.toString(),
+                order.totalAmount,
+                order.wsspCoordinatorId.toString(),
+                order.invoiceGeneratedAt || (order as any).createdAt
+            );
         }
 
         return { message: 'Payment status updated', data: order };
@@ -262,12 +302,45 @@ export class OrdersService {
         }, { new: true });
     }
 
-    async getMyOrders(customerId: string, paginationDto: PaginationDto) {
-        // Check if user is a merchant or partner
-        const [merchant, partner] = await Promise.all([
-            this.userModel.db.model('Merchant').findOne({ userId: new Types.ObjectId(customerId) }).lean() as any,
-            this.userModel.db.model('Partner').findOne({ userId: new Types.ObjectId(customerId) }).lean() as any,
+    async claimInvoice(coordinatorId: string, orderNumber: string) {
+        const order = await this.orderModel.findOne({ orderNumber });
+        if (!order) throw new NotFoundException('Order/Invoice not found');
+
+        const coordinator = await this.userModel.findById(coordinatorId);
+        if (!coordinator || !coordinator.isCoordinator) {
+            throw new BadRequestException('User is not a registered coordinator');
+        }
+
+        if (order.wsspCoordinatorId) {
+            if (order.wsspCoordinatorId.toString() === coordinatorId) {
+                return { message: 'You have already claimed this invoice', data: order };
+            }
+            throw new BadRequestException('This invoice has been claimed by another coordinator');
+        }
+
+        if (order.paymentStatus === PaymentStatus.PAID) {
+            throw new BadRequestException('Cannot claim an invoice that has already been paid');
+        }
+
+        order.wsspCoordinatorId = new Types.ObjectId(coordinatorId);
+        await order.save();
+
+        this.logger.log(`Coordinator ${coordinatorId} claimed invoice ${orderNumber}`);
+        return { message: 'Invoice claimed successfully', data: order };
+    }
+
+    async getMyOrders(userId: string, paginationDto: PaginationDto) {
+        // Check if user is a merchant, partner, or specifically a coordinator
+        const [user, merchant, partner] = await Promise.all([
+            this.userModel.findById(userId).lean() as any,
+            this.userModel.db.model('Merchant').findOne({ userId: new Types.ObjectId(userId) }).lean() as any,
+            this.userModel.db.model('Partner').findOne({ userId: new Types.ObjectId(userId) }).lean() as any,
         ]);
+
+        if (user?.isCoordinator) {
+            // Priority view for coordinators: show their claimed invoices
+            return this.findAll(paginationDto, { wsspCoordinatorId: new Types.ObjectId(userId) });
+        }
 
         if (merchant) {
             return this.findAll(paginationDto, { merchantId: merchant._id });
@@ -275,7 +348,7 @@ export class OrdersService {
             return this.findAll(paginationDto, { partnerId: partner._id });
         }
 
-        return this.findAll(paginationDto, { customerId });
+        return this.findAll(paginationDto, { customerId: userId });
     }
 
     async getStats() {
@@ -290,6 +363,51 @@ export class OrdersService {
             { $group: { _id: null, total: { $sum: '$totalAmount' } } },
         ]);
         return { total, pending, completed, cancelled, totalRevenue: revenue[0]?.total || 0 };
+    }
+
+    async getStaffLeaderboard() {
+        const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+        return this.orderModel.aggregate([
+            {
+                $match: {
+                    staffCode: { $exists: true, $ne: null },
+                    paymentStatus: PaymentStatus.PAID,
+                    createdAt: { $gte: startOfMonth }
+                }
+            },
+            {
+                $group: {
+                    _id: '$staffCode',
+                    totalSalesAmount: { $sum: '$totalAmount' },
+                    totalOrders: { $sum: 1 }
+                }
+            },
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: '_id',
+                    foreignField: 'staffCode',
+                    as: 'staffDetails'
+                }
+            },
+            {
+                $unwind: {
+                    path: '$staffDetails',
+                    preserveNullAndEmptyArrays: true
+                }
+            },
+            {
+                $project: {
+                    _id: 1,
+                    totalSalesAmount: 1,
+                    totalOrders: 1,
+                    staffName: '$staffDetails.fullName',
+                    avatar: '$staffDetails.avatar'
+                }
+            },
+            { $sort: { totalSalesAmount: -1 } },
+            { $limit: 10 }
+        ]);
     }
 
     async submitPaymentProof(id: string, proofUrl: string) {

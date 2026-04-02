@@ -49,19 +49,27 @@ export class WalletsService {
     }
 
     async requestWithdrawal(userId: string, amount: number, bankDetails: any) {
-        if (amount < MIN_WITHDRAWAL_AMOUNT) {
-            throw new BadRequestException(`Minimum withdrawal amount is ₦${MIN_WITHDRAWAL_AMOUNT.toLocaleString()}`);
-        }
-
-        // Find user's wallet via their merchant/partner profile
+        // Find user's wallet via their merchant/partner/staff profile
         const wallet = await this.walletModel.findOne({
             $or: [
                 { ownerId: new Types.ObjectId(userId), ownerType: 'merchant' },
                 { ownerId: new Types.ObjectId(userId), ownerType: 'partner' },
+                { ownerId: new Types.ObjectId(userId), ownerType: 'user' }, // Staff
             ],
         });
 
         if (!wallet) throw new NotFoundException('Wallet not found');
+
+        // Threshold Validation
+        if (wallet.ownerType === 'user') {
+            if (amount < 5000) {
+                throw new BadRequestException(`Minimum withdrawal amount for staff is ₦5,000`);
+            }
+        } else {
+            if (amount < MIN_WITHDRAWAL_AMOUNT) {
+                throw new BadRequestException(`Minimum withdrawal amount is ₦${MIN_WITHDRAWAL_AMOUNT.toLocaleString()}`);
+            }
+        }
         if (wallet.availableBalance < amount) {
             throw new BadRequestException('Insufficient balance');
         }
@@ -237,5 +245,37 @@ export class WalletsService {
         ]);
 
         return new PaginatedResult(data as any[], total, page, limit);
+    }
+
+    async exportStaffSalaryData() {
+        // Aggregate all staff wallets with an available balance
+        const staffWallets = await this.walletModel.aggregate([
+            { $match: { ownerType: 'user', availableBalance: { $gte: 5000 } } },
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: 'ownerId',
+                    foreignField: '_id',
+                    as: 'user'
+                }
+            },
+            { $unwind: '$user' },
+            {
+                $project: {
+                    staffCode: '$user.staffCode',
+                    fullName: '$user.fullName',
+                    email: '$user.email',
+                    phone: '$user.phone',
+                    availableBalance: 1,
+                }
+            }
+        ]);
+
+        let csv = 'Staff Code,Full Name,Email,Phone,Add-on Amount\n';
+        for (const staff of staffWallets) {
+            csv += `"${staff.staffCode || ''}","${staff.fullName}","${staff.email}","${staff.phone || ''}",${staff.availableBalance}\n`;
+        }
+
+        return { csv, count: staffWallets.length, raw: staffWallets };
     }
 }

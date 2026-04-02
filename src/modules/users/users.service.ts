@@ -225,6 +225,13 @@ export class UsersService {
         // but the user will reset it.
         const tempPassword = await bcrypt.hash(Math.random().toString(36), 12);
 
+        const isStaff = role === 'staff' || (inviteDto as any).isStaff;
+        let staffCode = undefined;
+        if (isStaff) {
+            const initials = fullName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || 'WK';
+            staffCode = `WS-${initials}-${Math.floor(1000 + Math.random() * 9000)}`;
+        }
+
         const user = await this.userModel.create({
             email: email.toLowerCase(),
             fullName,
@@ -237,6 +244,8 @@ export class UsersService {
             applicationStatus: 'pending',
             otpCode,
             otpExpires,
+            isStaff,
+            staffCode,
         });
 
         await this.mailService.sendAdminInvitationEmail(user.email, user.fullName, otpCode).catch(e => console.error('Failed to send invitation email', e));

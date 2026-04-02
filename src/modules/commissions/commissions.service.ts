@@ -76,6 +76,96 @@ export class CommissionsService {
         return commission;
     }
 
+    async calculateStaffCommission(orderId: string, orderValue: number, staffCode: string) {
+        if (!staffCode) return null;
+
+        const User = this.commissionModel.db.model('User');
+        const SystemSettings = this.commissionModel.db.model('SystemSettings');
+
+        const staff = await User.findOne({ staffCode, isStaff: true, isActive: true }).lean() as any;
+        if (!staff) return null;
+
+        const settings = await SystemSettings.findOne().lean() as any;
+        const rate = settings?.staffCommissionRate || 3; // Default 3%
+
+        const commissionAmount = (orderValue * rate) / 100;
+
+        const commission = await this.commissionModel.create({
+            orderId: new Types.ObjectId(orderId),
+            userId: staff._id,
+            staffCode,
+            orderValue,
+            commissionRate: rate,
+            commissionAmount,
+            status: CommissionStatus.APPROVED,
+            calculatedAt: new Date(),
+            approvedAt: new Date(),
+        });
+
+        // Update staff wallet
+        await this.walletModel.findOneAndUpdate(
+            { ownerId: staff._id, ownerType: 'user' },
+            {
+                $inc: {
+                    availableBalance: commissionAmount,
+                    totalEarned: commissionAmount,
+                },
+            },
+            { upsert: true, new: true }
+        );
+
+        this.logger.log(`Staff Commission ₦${commissionAmount} calculated for order ${orderId} (Staff: ${staffCode})`);
+        return commission;
+    }
+
+    async calculateWsspCommission(orderId: string, orderValue: number, coordinatorId: string, invoiceGeneratedAt: Date) {
+        if (!coordinatorId || !invoiceGeneratedAt) return null;
+
+        const User = this.commissionModel.db.model('User');
+        const coordinator = await User.findById(coordinatorId).lean() as any;
+        if (!coordinator || !coordinator.isCoordinator) return null;
+
+        // Calculate days delta
+        const paymentDate = new Date();
+        const invoiceDate = new Date(invoiceGeneratedAt);
+        const daysDiff = Math.ceil(Math.abs(paymentDate.getTime() - invoiceDate.getTime()) / (1000 * 3600 * 24));
+
+        let rate = 0;
+        if (daysDiff <= 7) rate = 1.00;
+        else if (daysDiff <= 14) rate = 0.75;
+        else if (daysDiff <= 21) rate = 0.50;
+        else rate = 0.25;
+
+        const commissionAmount = (orderValue * rate) / 100;
+
+        const commission = await this.commissionModel.create({
+            orderId: new Types.ObjectId(orderId),
+            userId: coordinator._id,
+            orderValue,
+            commissionRate: rate,
+            commissionAmount,
+            status: CommissionStatus.APPROVED,
+            calculatedAt: new Date(),
+            approvedAt: new Date(),
+            notes: `WSSP Tier: Paid in ${daysDiff} days`
+        });
+
+        // Update coordinator wallet
+        await this.walletModel.findOneAndUpdate(
+            { ownerId: coordinator._id, ownerType: 'user' },
+            {
+                $inc: {
+                    availableBalance: commissionAmount,
+                    totalEarned: commissionAmount,
+                },
+            },
+            { upsert: true, new: true }
+        );
+
+        this.logger.log(`WSSP Commission ₦${commissionAmount} (Rate: ${rate}%) calculated for order ${orderId} (Coordinator: ${coordinatorId})`);
+        return commission;
+    }
+
     async reverseCommission(orderId: string, reason: string) {
         const commission = await this.commissionModel.findOne({
             orderId: new Types.ObjectId(orderId),
@@ -126,16 +216,21 @@ export class CommissionsService {
         const skip = (Number(page) - 1) * Number(limit);
 
         // Find merchant or partner by userId
-        const merchant = await this.merchantModel.findOne({ userId: new Types.ObjectId(userId) }).lean();
-        const partner = await this.partnerModel.findOne({ userId: new Types.ObjectId(userId) }).lean();
+        const [user, merchant, partner] = await Promise.all([
+            this.commissionModel.db.model('User').findById(userId).lean() as any,
+            this.merchantModel.findOne({ userId: new Types.ObjectId(userId) }).lean(),
+            this.partnerModel.findOne({ userId: new Types.ObjectId(userId) }).lean(),
+        ]);
 
         const filter: any = {};
-        if (merchant) {
+        if (user?.isStaff || user?.isCoordinator) {
+            filter.userId = new Types.ObjectId(userId);
+        } else if (merchant) {
             filter.merchantId = (merchant as any)._id;
         } else if (partner) {
             filter.partnerId = (partner as any)._id;
         } else {
-            // No merchant or partner profile — return empty
+            // No matching profile — return empty
             return new PaginatedResult([], 0, page, limit);
         }
 
